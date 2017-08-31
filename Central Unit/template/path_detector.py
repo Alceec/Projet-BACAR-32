@@ -40,7 +40,7 @@ def detect(mask):
             as the mask) that visualizes the found path. Used for
             visualization in the viewer only.
 
-    See path_detector.py in the `example` folder for a simplistic but functioning
-    example.
+    See path_detector.py in the `example` folder for a simplistic but
+    functioning example.
     """
     return (None, None)
