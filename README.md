@@ -1,29 +1,10 @@
 # BACAR ZERO distribution #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This folder contains the software framework, templates, and examples of the BACAR Zero.
 
-### What is this repository for? ###
+### Contents
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+* Arduino: all libraries, templates, and examples for the Arduino Controller
+* Centeral unit: the python-based software framework for the central unit
 
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+Refer to the "Software Architecture" specification document annexed to the Cahier de Charges for more information.
