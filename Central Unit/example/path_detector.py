@@ -12,9 +12,9 @@
     prototype.
 
     In this Simplistic Path Detector, a path is detected by sampling a single
-    row towards the bottom of the image. Non-zero pixels are identified to infer
-    the road between the car center and the road center is calculated and used
-    as the path to follow. """
+    row towards the bottom of the image. Non-zero pixels are identified to
+    infer the road between the car center and the road center is calculated and
+    used as the path to follow. """
 
 import logging
 import numpy as np
@@ -51,7 +51,8 @@ def detect(mask):
 
     img_height, img_width = mask.shape
     x0 = int(img_width / 2)  # center of the image
-    y0 = int(img_height*.85)  # row to sample (first row at the top is row zero, second row at the top is row 1, ...)
+    # row to sample (first row at the top is row zero)
+    y0 = int(img_height*.85)
 
     # assume the car center is at coordinate (img_width/2, img_height)
     car_center = (x0, img_height)
@@ -88,7 +89,8 @@ def detect(mask):
     # Draw a green line to display the row that was sampled
     cv2.line(path_img, (0, y0), (img_width, y0), (0, 255, 0))
 
-    # Draw a small filled dot at the calculated road center, 4 pixels wide, in red
+    # Draw a small filled dot at the calculated road center, 4 pixels wide,
+    # in red
     cv2.circle(path_img, road_center, 4, (0, 0, 255), -1)
 
     # Return the path dictionary and image. The path_dict will be sent

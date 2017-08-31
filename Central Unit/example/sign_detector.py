@@ -2,8 +2,8 @@
 
    A Sign Detector module is a python file that contains a `detect` function
    that is capable of analyzing a color image which, according to the image
-   server, likely contains a road sign. The analysis should identify the kind of
-   road sign contained in the image.
+   server, likely contains a road sign. The analysis should identify the kind
+   of road sign contained in the image.
 
    See the description of the `detect` function below for more details.
 """
@@ -25,7 +25,8 @@ def detect(bb, sign):
       bb = (x0,y0, w, h) where w and h are the widht and height of the sign
       (can be used to determine e.g., whether the sign is to the left or
        right)
-    The goal of this function is to recognize  which of the following signs it really is:
+    The goal of this function is to recognize  which of the following signs
+    it really is:
     - a stop sign
     - a turn left sign
     - a turn right sign
