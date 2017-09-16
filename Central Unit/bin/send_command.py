@@ -15,7 +15,7 @@ Arguments:
 
     --local:   equivalent to mqtthost=localhost, mqtt_port=1833
 
-    --remote:  equivalent to mqtthost=192.168.42.1, mqtt_port=1833
+    --remote:  equivalent to mqtthost=bacar, mqtt_port=1833
 
 OUTPUT MQTT events:
 
@@ -43,12 +43,12 @@ def get_arguments():
     parser.add_argument('message', help='the command string to send to the state machine')
     parser.add_argument('--mqtt_host', nargs='?', default="localhost",
                         help='specify the hostname of the MQTT broker to connect to (default = localhost)')
-    parser.add_argument('--mqtt_port', nargs='?', type=int, default=1833,
+    parser.add_argument('--mqtt_port', nargs='?', type=int, default=1883,
                         help='specify the port of the MQTT broker to connect to (default = 1833)')
     parser.add_argument('--local', action='store_true', default=True,
                         help='Equivalent to --mqtt_host localhost')
     parser.add_argument('--remote', action='store_true', default=False,
-                        help='Equivalent to --mqtt_host 192.168.42.1 (MQTT broker of Orange Pi when connected to BACar Wifi network)')
+                        help='Equivalent to --mqtt_host bacar (MQTT broker of Orange Pi when connected to BACar Wifi network)')
     return parser.parse_args()
 
 
@@ -58,7 +58,11 @@ def get_parameters(args):
               'mqtt_port': 1883}
     # command-line arguments override config file
     if args.remote:
-        params['mqtt_host'] = "192.168.42.1"
+        params['mqtt_host'] = "bacar"
+    if args.mqtt_host is not None:
+        params['mqtt_host'] = args.mqtt_host
+    if args.mqtt_port is not None:
+        params['mqtt_port'] = args.mqtt_port
     params['message'] = args.message
     return params
 
@@ -69,6 +73,8 @@ if __name__ == '__main__':
 
     # read parameters file
     parameters = get_parameters(args)
+
+    print("Sending \"%s\" to broker at %s:%s" % (parameters['message'], parameters['mqtt_host'], parameters['mqtt_port']))
 
     # create mqtt client -
     client = mqtt.Client()

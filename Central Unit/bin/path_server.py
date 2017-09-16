@@ -149,7 +149,7 @@ def display(mask, path_img, path_dict, userdata):
 
     # print other keys from json dict
     y = 1  # vertical offset to start at
-    for key, value in path_dict.iteritems():
+    for key, value in six.iteritems(path_dict):
         y = y + 20
         # text
         if type(value) == float:
@@ -229,7 +229,7 @@ def get_detector(params):
 def setup_display(params):
     if params['display']:
         cv2.namedWindow('Path Detector')
-        cv2.moveWindow('Path Detector',20 , 20)
+        cv2.moveWindow('Path Detector',620 , 10)
 
 
 if __name__ == '__main__':

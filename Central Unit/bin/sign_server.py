@@ -134,16 +134,16 @@ def display(sign_arr, sign_dict, userdata):
     if sign_dict is not None:
         # print other keys from json dict
         y = 21  # vertical offset to start at
-        for key, value in sign_dict.iteritems():
+        for key, value in six.iteritems(sign_dict):
             y = y + 20
             # text
             if type(value) == float:
                 s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
             else:
                 s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                cv2.putText(canvas, s, (DEFAULTW + 1, y), font, .5, (20,20,20),1)
-                cv2.putText(canvas, s, (DEFAULTW + 0, y-1), font, .5, (200,200,200), 1)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(canvas, s, (DEFAULTW + 1, y), font, .5, (20,20,20),1)
+            cv2.putText(canvas, s, (DEFAULTW + 0, y-1), font, .5, (200,200,200), 1)
 
     cv2.imshow('Sign Detector', canvas)
 
@@ -215,7 +215,7 @@ def get_detector(params):
 def setup_display(params):
     if params['display']:
         cv2.namedWindow('Sign Detector')
-        cv2.moveWindow('Sign Detector',20 , 20)
+        cv2.moveWindow('Sign Detector',620 , 300)
 
 
 if __name__ == '__main__':

@@ -14,19 +14,20 @@ SIGN_MODULE = 'sign_detector' # = ./sign_detector.py
 
 
 def get_arguments():
-    parser = argparse.ArgumentParser(description='Start Video Simulation: launch image server with video file; path detector, sign detector, and state machine')
+    parser = argparse.ArgumentParser(description='Start Video Simulation. Launches IMAGE SERVER (in birdsview mode) with video file; PATH DETECTOR, SIGN DETECTOR, TRAFFIC LIGHT DETECTOR, and STATE MACHINE.')
     parser.add_argument('video_file', help='specify the video file to play')
     return parser.parse_args()
 
 
 args = get_arguments()
 
-PYTHON = 'python'
+PYTHON2 = 'python'
+PYTHON3 = 'python3'
 
-statemachine_cmd = [PYTHON, '../bin/sm_server.py', '--machine', STATEMACHINE_MODULE]
-path_cmd = [PYTHON, '../bin/path_server.py', '--detector', PATH_MODULE, '--display']
-sign_cmd = [PYTHON, '../bin/sign_server.py', '--detector', SIGN_MODULE, '--display']
-imageserver_cmd = [PYTHON, '../bin/image_server.py', '--bird', '--vflip', '--filter', '--show', args.video_file]
+statemachine_cmd = [PYTHON3, '../bin/sm_server.py', '--machine', STATEMACHINE_MODULE]
+path_cmd = [PYTHON3, '../bin/path_server.py', '--detector', PATH_MODULE, '--display']
+sign_cmd = [PYTHON3, '../bin/sign_server.py', '--detector', SIGN_MODULE, '--display']
+imageserver_cmd = [PYTHON2, '../bin/image_server.py', '--bird', '--vflip', '--filter', '--show', args.video_file] # includes traffic light detector
 
 commands = [statemachine_cmd, path_cmd, sign_cmd, imageserver_cmd]
 subprocs = [subprocess.Popen(cmd) for cmd in commands]

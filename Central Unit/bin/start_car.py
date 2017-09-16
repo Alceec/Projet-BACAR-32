@@ -2,6 +2,7 @@
 import subprocess
 import time
 import sys
+import argparse
 
 # CHANGE THE FOLLOWING LINES IF YOU WANT TO EXECUTE DIFFERENT MODULES
 
@@ -11,13 +12,23 @@ SIGN_MODULE = 'sign_detector' # = ./sign_detector.py
 
 # NO CHANGES BELOW THIS LINE ARE NECESSARY
 
-PYTHON = 'python'
+PYTHON2 = 'python'
+PYTHON3 = 'python3'
 
-statemachine_cmd = [PYTHON, 'sm_server.py', '--machine', STATEMACHINE_MODULE]
-path_cmd = [PYTHON, 'path_server.py', '--detector', PATH_MODULE, '--display']
-sign_cmd = [PYTHON, 'sign_server.py', '--detector', SIGN_MODULE, '--display']
-imageserver_cmd = [PYTHON, 'image_server.py', '--bird', '--hide', '--filter']
-driver_cmd = [PYTHON, 'driver.py']
+
+def get_arguments():
+    parser = argparse.ArgumentParser(description='%s: Launch all required programs to drive the BAcar. Starts IMAGE SERVER (in birdsview mode, hidden), PATH DETECTOR, SIGN DETECTOR, TRAFFIC LIGHT DETECTOR, STATE MACHINE, and DRIVER' % __file__)
+    return parser.parse_args()
+
+
+args = get_arguments()
+
+
+statemachine_cmd = [PYTHON3, '../bin/sm_server.py', '--machine', STATEMACHINE_MODULE]
+path_cmd = [PYTHON3, '../bin/path_server.py', '--detector', PATH_MODULE]
+sign_cmd = [PYTHON3, '../bin/sign_server.py', '--detector', SIGN_MODULE]
+imageserver_cmd = [PYTHON2, '../bin/image_server.py', '--bird', '--hide', '--filter'] #includes traffic light detector
+driver_cmd = [PYTHON2, '../bin/driver.py']
 
 commands = [statemachine_cmd, path_cmd, sign_cmd, imageserver_cmd, driver_cmd]
 subprocs = [subprocess.Popen(cmd) for cmd in commands]

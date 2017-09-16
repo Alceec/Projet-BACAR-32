@@ -4,9 +4,8 @@
 Main video processing loop
 --------------------------
 - open video stream 1 (the one that is opencv compatible (320x240 rgb image)
+- open video file and play it in loop
 - loop over acquisition and display of the current frame
-- display acquisition delay
-- illustrate the profiling method using cProfile
 
 list of the GUI commands:
 - 'a' display/hide A4 calibration tool
@@ -26,7 +25,7 @@ list of the GUI commands:
 - 'B' get the color at x,y position, replace current blue target color
 
 - 'f' filter on/off
-- 'F' freese (keep) last acquired frame
+- 'F' freeze (keep) last acquired frame
 - 'x' hide/display real-time rendering (enable higher frame rate and less CPU)
 - 'q' quit the program (i.e. shutdown the server)
 
@@ -37,7 +36,6 @@ list of the GUI commands:
 
 - 'h/j/u/n' move crosshair cursor by 1 pixel
 - 'H/J/H/N' move crosshair cursor by 10 pixels
-
 
 - '5' save parameters to json file
 
@@ -52,6 +50,10 @@ bacar/server/mask/boolarray
 bacar/server/xy/rgb_hsv
     sends the rgb and hsv at the xy position (for each frame)
 
+bacar/server/traffic/red
+bacar/server/traffic/orange
+bacar/server/traffic/green
+    send a message when a traffic light is detected
 
 MQTT commands:
 
@@ -129,7 +131,21 @@ def on_message(client, userdata, msg):
     if msg.topic[0]==CMD_SERVER_SET_XY:
         logging.info("xy set to "+msg.payload)
 # --------------------------------------------------------------------------------------------------------------
+# MONOSTABLE
+def monostable(sec):
+    # generator that allows to group consecutive pulses (mask new pulse <sec)
+    # if time since previous call is inferior to sec, return False
+    t = time()-sec
+    while True:
+        d = time()-t
+        t = time()
+        if (d <= sec):
+            yield False
+        else:
+            yield True
 
+
+# --------------------------------------------------------------------------------------------------------------
 
 
 
@@ -166,12 +182,12 @@ if __name__ == '__main__':
         logging.info('opencv version 2 used')
         CAP_PROP_FRAME_COUNT = cv2.cv.CV_CAP_PROP_FRAME_COUNT
         CAP_PROP_POS_FRAMES = cv2.cv.CV_CAP_PROP_POS_FRAMES
-        fourcc = cv2.cv.CV_FOURCC(*'XVID')
+        fourcc = cv2.cv.CV_FOURCC(*'MJPG')
     else:
         logging.info('opencv version 3 used')
         CAP_PROP_FRAME_COUNT = cv2.CAP_PROP_FRAME_COUNT
         CAP_PROP_POS_FRAMES = cv2.CAP_PROP_POS_FRAMES
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
     # get parametres from parameter file
     def_param = {'camera':'orange',          #'orange','picam','0'
@@ -195,7 +211,9 @@ if __name__ == '__main__':
                  'red_tol':[20,69,59],
                  'blue_hsv':[109,197,107],  # blue signs
                  'blue_tol':[20,80,50],
-                 'roi': [50,100]}
+                 'roi': [50,100],
+                 "arena_json": "./data/test_arena9s.json"    # arena description file (used in simulator)
+                 }
     parameters = read_param('config_server.json')
     if parameters is None:
         parameters = def_param
@@ -308,6 +326,10 @@ if __name__ == '__main__':
     birdsview = parameters['birdsview']
     hide = parameters['hide']
     keep = False
+
+    red_monostable = monostable(3)
+    orange_monostable = monostable(3)
+    green_monostable = monostable(3)
 
     sample = ''
 
@@ -573,8 +595,9 @@ if __name__ == '__main__':
 
             else:
                 blue_contours = None
+
         #traffic light detection
-        mask_lights = (np.bitwise_and(grabbed[:,:,0]>220,
+        mask_lights = (np.bitwise_and(grabbed[:,:,0]>200,
                                   grabbed[:,:,1]>220)).astype(np.uint8)
         mask_lights = cv2.dilate(mask_lights,selem2)
         light_contours = cv2.findContours(mask_lights.copy(),
@@ -583,26 +606,30 @@ if __name__ == '__main__':
                                          )[-2]
 
         if light_contours:
-            light_areas = [cv2.contourArea(ctr) for ctr in light_contours]
-            max_light_area = max(light_areas)
-            if 10 < max_light_area < 100:
-                light_idx = light_areas.index(max_light_area)
-                bb_light = cv2.boundingRect(light_contours[light_idx])
-                crop_light = grabbed[bb_light[1]:bb_light[1]+bb_light[3],bb_light[0]:bb_light[0]+bb_light[2]].copy()
-                rgb_triplet = crop_light.reshape((crop_light.shape[0]*crop_light.shape[1],3))
-                med_rgb = np.mean(rgb_triplet,axis=0)
+            #light_areas =
+            #max_light_area = max(light_areas)
+            for ctr in light_contours:
+                if 15 < cv2.contourArea(ctr) < 100:
+                    bb_light = cv2.boundingRect(ctr)
+                    crop_light = grabbed[bb_light[1]:bb_light[1]+bb_light[3],bb_light[0]:bb_light[0]+bb_light[2]].copy()
+                    rgb_triplet = crop_light.reshape((crop_light.shape[0]*crop_light.shape[1],3))
+                    med_rgb = np.median(rgb_triplet,axis=0)
+                    print(med_rgb,cv2.contourArea(ctr))
+                    rgb_target = np.array([[37,43,186],[37,85,180],[63,85,38]])
+                    d = np.linalg.norm(rgb_target - med_rgb,axis = 1)
 
-                rgb_target = np.array([[140,114,240],[170,200,206],[105,130,70]])
-                d = np.linalg.norm(rgb_target - med_rgb,axis = 1)
+                    traffic_list = [('red',MSG_SERVER_TRAFFIC_RED,red_monostable),
+                            ('orange',MSG_SERVER_TRAFFIC_ORANGE,orange_monostable),
+                            ('green',MSG_SERVER_TRAFFIC_GREEN,green_monostable)]
 
-                traffic_list = [('red',MSG_SERVER_TRAFFIC_RED),
-                        ('orange',MSG_SERVER_TRAFFIC_ORANGE),
-                        ('green',MSG_SERVER_TRAFFIC_GREEN)]
 
-                light_no = np.argmin(d)
-                client.publish('test',traffic_list[light_no][1])
+                    light_no = np.argmin(d)
+                    mono = six.next(traffic_list[light_no][2])
+                    if mono:
+                        client.publish(traffic_list[light_no][1],'')
+                        logging.info('traffic light detected [%s] [%s] %f '%(traffic_list[light_no][0],str(med_rgb),cv2.contourArea(ctr)))
 
-                logging.info('traffic light detected [%s]'%traffic_list[light_no][0])
+                    break;
 
             else:
                 light_contours = None

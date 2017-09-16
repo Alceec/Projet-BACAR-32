@@ -21,6 +21,10 @@ mqttconfig.MSG_PATH_JSON: the path dict produced by the detector routine
 mqttconfig.MSG_ANALYZER_SIGN_JSON: the sign dict produced by the sign analyzer routine
 mqttconfig.MSG_DRIVER_STATUS_JSON: the status dict produced by MQTT<->arduino bridge
 mqttconfig.MSG_COMMAND: a command string issued by the remote computer
+mqttconfig.MSG_SERVER_TRAFFIC_RED: a red traffic light has been detected by the image server
+mqttconfig.MSG_SERVER_TRAFFIC_ORANGE: an orange traffic light has been detected by the image server
+mqttconfig.MSG_SERVER_TRAFFIC_GREEN: a green traffic light has been detected
+
 
 OUTPUT MQTT events:
 mqttconfig.MSG_DRIVER_SEND_JSON: a dict to be send to the MQTT<->arduino bridge for communication to aduino.
@@ -89,6 +93,9 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(MSG_ANALYZER_SIGN_JSON, qos=0)
     client.subscribe(MSG_DRIVER_STATUS_JSON, qos=0)
     client.subscribe(MSG_COMMAND, qos=0)
+    client.subscribe(MSG_SERVER_TRAFFIC_RED, qos=0)
+    client.subscribe(MSG_SERVER_TRAFFIC_ORANGE, qos=0)
+    client.subscribe(MSG_SERVER_TRAFFIC_GREEN, qos=0)
 
 
 # The callback for when a PUBLISH message is received from the server.
@@ -97,14 +104,20 @@ def on_message(client, userdata, msg):
     # if we see a relevant MQTT message, we add it as an Event
     # internal queue (in userdata.messages)
     if msg.topic == MSG_PATH_JSON:
-        e = Event(Event.PATH, json.loads(msg.payload))
+        e = Event(Event.PATH, json.loads(msg.payload.decode("utf-8")))
     elif msg.topic == MSG_ANALYZER_SIGN_JSON:
-        e = Event(Event.SIGN, json.loads(msg.payload))
+        e = Event(Event.SIGN, json.loads(msg.payload.decode("utf-8")))
     elif msg.topic == MSG_DRIVER_STATUS_JSON:
-        e = Event(Event.CAR, json.loads(msg.payload))
+        e = Event(Event.CAR, json.loads(msg.payload.decode("utf-8")))
+    elif msg.topic == MSG_SERVER_TRAFFIC_RED:
+        e = Event(Event.TRAFFICLIGHT, 'RED')
+    elif msg.topic == MSG_SERVER_TRAFFIC_ORANGE:
+        e = Event(Event.TRAFFICLIGHT, 'ORANGE')
+    elif msg.topic == MSG_SERVER_TRAFFIC_GREEN:
+        e = Event(Event.TRAFFICLIGHT, 'GREEN')
     elif msg.topic == MSG_COMMAND:
-        logging.info("got COMMAND: " + msg.payload)
-        e = Event(Event.CMD, msg.payload)
+        logging.info("got COMMAND: " + msg.payload.decode("utf-8"))
+        e = Event(Event.CMD, msg.payload.decode("utf-8"))
 
     userdata.messages.append(e)
 
@@ -173,10 +186,10 @@ def create_send(mqttclient):
     def send_to_driver(x, y, u, v):
         '''Asks the MQTT-to-Arduino bridge to send the four-tuple (x,y,u,v) to the
            arduino nano. Here, x,y must be integers; u,v must be floats'''
-        assert type(x) is IntType, "x is not an integer: %r" % x
-        assert type(y) is IntType, "y is not an integer: %r" % y
-        assert type(u) is FloatType or type(u) is IntType, "u is not a float: %r" % u
-        assert type(v) is FloatType or type(v) is IntType, "v is not a float: %r" % v
+        assert type(x) is int, "x is not an integer: %r" % x
+        assert type(y) is int, "y is not an integer: %r" % y
+        assert type(u) is float or type(u) is int, "u is not a float: %r" % u
+        assert type(v) is float or type(v) is int, "v is not a float: %r" % v
         payload = '{"x":%d, "y":%d, "u":%f,"v":%f}' % (x, y, u, v)
         mqttclient.publish(MSG_DRIVER_SEND_JSON, payload)
 

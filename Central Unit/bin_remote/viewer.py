@@ -4,6 +4,22 @@
 Listen to MQTT messages sent by the image, path, and sign servers
 and visualize these messages
 
+Arguments:
+
+    --mqtt_host:  the hostname of the MQTT broker to connect to
+                  (default: "bacar")
+
+    --mqtt_port:  the port of the MQTT broker to connect to
+                  (default: 1833)
+
+    --local:   equivalent to mqtthost=localhost, mqtt_port=1833
+
+    --remote:  equivalent to mqtthost=bacar, mqtt_port=1833 (this is the default)
+
+OUTPUT MQTT events:
+
+mqttconfig.MSG_COMMAND: command event
+
 INPUT MQTT Events:
 
 mqttconfig.MSG_BOOL_ARRAY: the maks array produced by the image server
@@ -20,6 +36,7 @@ import logging
 import json
 import time
 import types
+import argparse
 
 try:
     from StringIO import StringIO
@@ -129,7 +146,7 @@ class MQTTController:
             # the mask image (otherwise it is too old)
             path_img_mask = cv2.threshold(cv2.cvtColor(data.path_img, cv2.COLOR_BGR2GRAY), 1 , 255, cv2.THRESH_BINARY_INV)[1]
             mask_rgb = cv2.bitwise_and(mask_rgb, mask_rgb, mask=path_img_mask)
-            mask_rgb = cv2.add(mask_rgb, data.path_img)            
+            mask_rgb = cv2.add(mask_rgb, data.path_img)
 
         if data.sign_img is not None and data.sign_img_ref_ts - data.mask_ts < 0.02:
             mask_rgb[-data.sign_bb[3]:, w-data.sign_bb[2]:w , :] = data.sign_img
@@ -144,7 +161,7 @@ class MQTTController:
         if data.path_dict is not None:
             # print other keys from json dict
             y = 1  # vertical offset to start at
-            for key, value in data.path_dict.iteritems():
+            for key, value in six.iteritems(data.path_dict):
                 y = y + 20
                 if type(value) == types.FloatType:
                     s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
@@ -156,7 +173,7 @@ class MQTTController:
         if data.sign_dict is not None:
             # print other keys from json dict
             y = 21  # vertical offset to start at
-            for key, value in data.sign_dict.iteritems():
+            for key, value in six.iteritems(data.sign_dict):
                 y = y + 20
                 if type(value) == types.FloatType:
                     s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
@@ -177,27 +194,66 @@ class MQTTController:
         logging.info("Connected to MQTT broker at %s:%i" % (broker, port))
 
 
+def setup_logging():
+    log_file_name = "%s.log" % __file__
+    print("Logging to " + log_file_name)
+    create_logger(log_file_name)
+    # output python version
+    logging.info("Running on python version" + sys.version)
+
+
+def get_arguments():
+    parser = argparse.ArgumentParser(description='Viewer: Listen to MQTT messages sent by the image server, path detector, and sign detector, and these messages')
+    parser.add_argument('--mqtt_host', nargs='?',
+                        help='specify the hostname of the MQTT broker to connect to (default = bacar, the MQTT broker of Orange Pi when connected to BACar Wifi network')
+    parser.add_argument('--mqtt_port', nargs='?', type=int,
+                        help='specify the port of the MQTT broker to connect to (default = 1833)')
+    parser.add_argument('--local', action='store_true', default=False,
+                        help='Equivalent to --mqtt_host localhost')
+    parser.add_argument('--remote', action='store_true', default=True,
+                        help='Equivalent to --mqtt_host bacar (MQTT broker of Orange Pi when connected to BACar Wifi network). This is the default.')
+    return parser.parse_args()
+
+
+def get_parameters(args):
+    # default parameters
+    params = {'mqtt_host': 'bacar',
+              'mqtt_port': 1883}
+    # command-line arguments override config file
+    if args.local:
+        params['mqtt_host'] = "localhost"
+    if args.mqtt_host is not None:
+        params['mqtt_host'] = args.mqtt_host
+    if args.mqtt_port is not None:
+        params['mqtt_port'] = args.mqtt_port
+    return params
+
+
+def setup_logging():
+    log_file_name = "./%s.log" % path.basename(__file__)
+    scriptname = "%s" % path.basename(__file__)
+    print("Logging to " + path.abspath(log_file_name))
+    create_logger(log_file_name, scriptname=scriptname)
+    # output python version
+    logging.info("Running on python version" + sys.version.replace("\n", "\t"))
+
 
 if __name__ == '__main__':
-    #start logging
-    create_logger('%s.log'%__file__)
-
-    # python version
-    logging.info(sys.version)
+    #    setup_logging()
+    args = get_arguments()
 
     # read parameters file
-    parameters = read_param('viewer_config.json')
-    host = parameters['mqtt_host']
-    port = parameters['mqtt_port']
-    logging.info('connecting to the broker: %s:%d'%(host, port))
+    parameters = get_parameters(args)
+
+    setup_logging()
+    logging.info('connecting to the broker: %s:%d' % (parameters['mqtt_host'],  parameters['mqtt_port']))
     # Create MQTT controller and let it connect
     mqtt_client = MQTTController()
-    mqtt_client.start(broker=host, port=port)
+    mqtt_client.start(broker=parameters['mqtt_host'], port=parameters['mqtt_port'])
 
     # create display window
     cv2.namedWindow('viewer')
-    cv2.moveWindow('viewer',10,10)
-
+    cv2.moveWindow('viewer', 10, 10)
 
     while True:
         # Wait for key (needed to display image)

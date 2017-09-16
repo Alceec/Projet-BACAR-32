@@ -19,10 +19,12 @@ from time import time,sleep
 from numpy.linalg import norm
 import cv2
 import json
+import os
 
 import paho.mqtt.client as mqtt
 import logging
 import argparse
+import random
 
 from os import sys, path
 
@@ -31,17 +33,25 @@ sys.path.append(path.dirname(path.abspath(__file__))+'/..')
 
 from tools.param_tools import read_param,save_param
 from tools.compression_tools import bool_to_payload,ts_mask_to_payload
+from tools.compression_tools import ts_bb_signarray_to_payload
 from tools.log_tools import create_logger
 from mqtt_config import *
 
+import json
+
 class Arena(object):
-    def __init__(self,filename):
-        if not path.exists(filename):
-            logging.error("Arena does not exist: %s" % path.abspath(filename))
+    def __init__(self, arena_json):
+        # read arena json
+        self.arena = json.load(open(arena_json))
+        [head,tail] = path.split(arena_json)
+
+        image_file = path.join(head,self.arena['arena_image'])
+        if not path.exists(image_file):
+            logging.error("Arena does not exist: %s" % path.abspath(image_file))
             sys.exit(1)
 
-        self.filename = filename
-        ima = cv2.imread(filename)
+        self.image_filename = image_file
+        ima = cv2.imread(image_file)
 
         if ima.ndim ==3:
             self.bitmap = ima.copy()
@@ -55,11 +65,22 @@ class Arena(object):
 
         self.size_x,self.size_y,_ =self.bitmap.shape
         self.original = self.bitmap.copy()
+
+
         # create display window
         cv2.namedWindow('arena')#,cv2.WINDOW_NORMAL)
+        cv2.moveWindow('arena', 10,10)
 
     def reset_bitmap(self):
         self.bitmap = self.original.copy()
+        # display signs
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        for s in self.arena["STOP"]:
+            cv2.putText(self.bitmap,'S',tuple(s[:2]), font, .5,(0,0,255),2)
+        for s in self.arena["LEFT"]:
+            cv2.putText(self.bitmap,'L',tuple(s[:2]), font, .5,(255,0,0),2)
+        for s in self.arena["RIGHT"]:
+            cv2.putText(self.bitmap,'R',tuple(s[:2]), font, .5,(255,0,0),2)
 
     def show(self):
         cv2.imshow('arena',self.bitmap)
@@ -114,6 +135,15 @@ class Camera(object):
         xy[4,:] = (self.x0,xy[0,1])
         xy[5,:] = (self.x0,xy[1,1])
         return np.array((x,y)),xy
+
+    def is_in_frustum(self,x,y):
+        # return True if (x,y) is seen by the camera
+        sx = x-self.x0
+        sy = y-self.y0
+
+
+        print(x,y)
+        return False
 
 class Car(object):
     def __init__(self,x0,y0,a0,e=30,L=50,wheel_r=10,wheel_l=10):
@@ -172,6 +202,39 @@ class Car(object):
                  (p[0]+w,p[1]-h)]
             cv_draw_poly(bitmap,xy,M,color)
 
+        def is_in_poly(xy,x,y):
+            # return True is (x,y) is included in polygon xy
+            s,r = inside_quad(xy, (x,y))
+            return s
+
+        def same_sign(arr): return np.all(arr > 0) if arr[0] > 0 else np.all(arr < 0)
+
+        def inside_quad(pts, pt):
+            a =  pts - pt
+            d = np.zeros((4,2))
+            d[0,:] = pts[1,:]-pts[0,:]
+            d[1,:] = pts[2,:]-pts[1,:]
+            d[2,:] = pts[3,:]-pts[2,:]
+            d[3,:] = pts[0,:]-pts[3,:]
+            res = np.cross(a,d)
+            return same_sign(res), res
+
+        def angle_diff(facingAngle,angleOfTarget):
+            anglediff = (facingAngle - angleOfTarget + np.pi) % (2*np.pi) - np.pi
+            return  anglediff
+
+        def send_a_sign(sign):
+            s_path = '../bin/cropped_signs'
+            p = path.join(s_path,sign)
+
+            if random.random() > .9: #send image from time to time...
+                f = random.choice(os.listdir(p))
+                cropped_sign = cv2.imread(os.path.join(p,f))
+                m,n,_ = cropped_sign.shape
+                ts = time()
+                bb = [100,100,m,n]
+                payload = ts_bb_signarray_to_payload(ts, bb, cropped_sign)
+                client.publish(MSG_SERVER_SIGN_ARRAY, payload)
 
         #car
         cv_draw_rect(self.arena.bitmap,(0,0),2,2,M)
@@ -184,7 +247,7 @@ class Car(object):
         xy_c,xy_f = self.camera.frustum()
         cv_draw_rect(self.arena.bitmap,(xy_c[0]-1,xy_c[1]-1),2,2,M)
         cv_draw_poly(self.arena.bitmap,xy_f[[0,1,3,2],:],M,color=(0,0,255))
-        cv_draw_poly(self.arena.bitmap,xy_f[[0,1,5,4],:],M,color=(0,0,255))
+        cv_draw_poly(self.arena.bitmap,xy_f[[0,1,5,4],:],M,color=(0,0,200))
         if self.rec:
             xy = np.asarray(self.rec)
             cv_draw_poly(self.arena.bitmap,xy,np.eye(3,3),closed=False,color=(50,50,50))
@@ -216,7 +279,6 @@ class Car(object):
         warped = warped.copy()
         cv2.fillPoly(warped, [np.int32(scale*p[[0,4,5,1,3,2,0],-1::-1])], (255,255,255))
 
-
         if self.t0 > 0:
             # MQTT send bool
             tmp = warped == 255
@@ -228,7 +290,27 @@ class Car(object):
         else:
             self.t0 += 1
 
-
+        # check for sign in the frustum
+        # panel direction (seen in that direction)
+        #     ^1
+        # <2     >4
+        #     _3
+        a_cam = a + self.camera.h_dir
+        for s in self.arena.arena["STOP"]:
+            a_s = s[2] * np.pi/2
+            if is_in_poly(XY_f[[0,1,3,2],:],s[0],s[1]):
+                if np.abs(angle_diff(a_cam,a_s))<np.pi/16:
+                    send_a_sign('stop')
+        for s in self.arena.arena["LEFT"]:
+            a_s = s[2] * np.pi/2
+            if is_in_poly(XY_f[[0,1,3,2],:],s[0],s[1]):
+                if np.abs(angle_diff(a_cam,a_s))<np.pi/16:
+                    send_a_sign('left')
+        for s in self.arena.arena["RIGHT"]:
+            a_s = s[2] * np.pi/2
+            if is_in_poly(XY_f[[0,1,3,2],:],s[0],s[1]):
+                if np.abs(angle_diff(a_cam,a_s))<np.pi/16:
+                    send_a_sign('right')
 
     def update(self):
 
@@ -311,24 +393,26 @@ def get_parameters(args):
         paramsfile = args.config
 
     params = read_param(paramsfile)
-    # default parameters
-    default_params = {'mqtt_host': 'localhost',
-                      'mqtt_port': 1883,
-                      'profile': False,
-                      'arena': './data/test_arena9s.png'}
+    # # default parameters
+    # default_params = {'mqtt_host': 'localhost',
+    #                   'mqtt_port': 1883,
+    #                   'profile': False,
+    #                   'arena': './data/test_arena9s.png'}
 
     if params is None:
-        params = default_params
-        logging.warning("Default parameters will be used")
-    else:
-        # config file overrides defaults
-        p = default_params.copy()
-        p.update(params)
-        params = p
+        # params = default_params
+        logging.error("No parameters available")
+        exit()
+    # else:
+    #     # config file overrides defaults
+    #     p = default_params.copy()
+    #     p.update(params)
+    #     params = p
 
     # arguments passed on command line override everything else
     if args.arena is not None:
-        params['arena'] = args.arena  # command line overrides config file
+        params['arena_json'] = args.arena  # command line overrides config file
+
     return params
 
 
@@ -364,8 +448,9 @@ if __name__ == '__main__':
 
     client.connect(parameters['mqtt_host'], parameters['mqtt_port'], 10)
 
-    arena = Arena(parameters['arena'])
-    car = Car(300,256,+np.pi/2)
+    arena = Arena(parameters['arena_json'])
+    x0,y0,a0 = arena.arena['p0']
+    car = Car(x0,y0,a0)
 
     # perspective parameters
 #    WARP_IMAGE_SIZE = tuple(parameters['warp_size'])

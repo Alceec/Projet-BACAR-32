@@ -12,6 +12,7 @@ class Event:
     SIGN = 1
     CAR = 2
     CMD = 3
+    TRAFFICLIGHT = 4
 
     def __init__(self, typ=None, val=None):
         self.type = typ
@@ -25,6 +26,8 @@ class Event:
             str_typ = "SIGN"
         elif (self.type == Event.CAR):
             str_typ = "CAR"
+        elif (self.type == Event.TRAFFICLIGHT):
+            str_typ = "TRAFFICLIGHT"
         else:
             str_typ = "CMD"
         return "Event(type=%s, val=%s)" % (str_typ, str(self.val))
