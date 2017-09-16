@@ -1,0 +1,16 @@
+This folder contains example  files for:
+- the path detector (in path_detector.py)
+- the sign detector (in sign_detector.py)
+- the state machine (in state_machine.py)
+Note that these examples are too simplistic to meaningfully control the car.
+
+In addition, the folder contains scripts to start:
+- all processes required to drive the car (start_car.py)
+- all processes required to do a simulation (start_sim.py)
+- all processes required to do a video simulation (start_video_sim.py)
+
+All of these scripts start the detectors/state machine occurring in the local
+folder.
+
+Make a copy this folder when starting the implementation of a kind of detector
+or state machine.
