@@ -458,7 +458,8 @@ if __name__ == '__main__':
 
     #structuring element
     selem = np.ones((15,1),dtype=np.uint8)
-    selem2 = np.ones((5,5),dtype=np.uint8)
+    #selem2 = np.ones((7,7),dtype=np.uint8)
+    selem2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(7,7))
 
 
     # main loop -------------------------------------------------------------------
@@ -627,12 +628,17 @@ if __name__ == '__main__':
             #mask_red_light = cyclic_inRange(hsv_red_light,red_light_l,red_light_u)
             #light_areas =
             #max_light_area = max(light_areas)
-            rgb_scores = np.ones((len(light_contours),3))*255
+            rgb_scores = np.ones((len(light_contours),3))*999
+            rec = np.zeros((len(light_contours),4))
+            rec[:,0] = range(len(light_contours))
             for i,ctr in enumerate(light_contours):
+
                 if 15 < cv2.contourArea(ctr) < 100:
                     
                     mean_blob,_ = getContourStat(ctr,hsv_grabbed)#grabbed
-                    
+
+                    rec[i,1:] = mean_blob
+
                     M = cv2.moments(ctr)
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
@@ -667,13 +673,30 @@ if __name__ == '__main__':
                             ('orange',MSG_SERVER_TRAFFIC_ORANGE,orange_monostable),
                             ('green',MSG_SERVER_TRAFFIC_GREEN,green_monostable)]
 
+                    # save crop
+                    crop_light_rgb = grabbed[bb_light[1]:bb_light[1]+bb_light[3],bb_light[0]:bb_light[0]+bb_light[2]].copy()
+                    mask_white = np.bitwise_and(crop_light_rgb[0]>200,crop_light_rgb[1]>200,crop_light_rgb[1]>200)
+                    mask_g = np.bitwise_and(crop_light_rgb[:,:,0]<crop_light_rgb[:,:,1],
+                                            crop_light_rgb[:,:,2]+40<crop_light_rgb[:,:,1])
+                    mask_r = np.bitwise_and(crop_light_rgb[:,:,0]<crop_light_rgb[:,:,2],
+                                            crop_light_rgb[:,:,1]+40<crop_light_rgb[:,:,2])
+                    print(mask_r.shape,crop_light.shape)
+                    # cv2.imwrite('./snapshot/blob_%02d_a.png'%i,crop_light_rgb)
+                    # cv2.imwrite('./snapshot/blob_%02d_b.png'%i,crop_light)
+                    # cv2.imwrite('./snapshot/blob_%02d_b.png'%i,128*(mask_g))
+                    # cv2.imwrite('./snapshot/blob_%02d_c.png'%i,128*(mask_r))
 
- 
+
                     #break;
             # find the best candidate
 		    # print('scores',scores)
             # scores normalization with respect to the higher value
             scores = rgb_scores/np.amin(rgb_scores,axis=1,keepdims=True)
+
+            # save measure for each spot to file
+            # np.savetxt('./snapshot/hsv.csv',rec)
+            # exit()
+
             # contour with the shortest distance to one of the targets
             minscore_per_blob = np.min(rgb_scores,axis=1)
             best = np.argmin(minscore_per_blob)
