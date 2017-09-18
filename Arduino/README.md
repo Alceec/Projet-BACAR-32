@@ -1,4 +1,4 @@
 # BACAR ZERO distribution #
 
-This subfolder contains libraries, templates, and examples for the Arduino Controller
+This subfolder contains libraries and examples for the Arduino Controller
 
