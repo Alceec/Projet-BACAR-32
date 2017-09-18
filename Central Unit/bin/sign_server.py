@@ -100,7 +100,7 @@ def on_message(client, userdata, msg):
             sign_dict = userdata.detector.detect((x0, y0, w, h), sign_arr)
 
             if sign_dict is None:
-                logging.warning("Detector returned None for path_dict")
+                logging.warning("Detector returned None for sign_dict")
             else:
                 if type(sign_dict) is not dict:
                     logging.error("Detector return other kind of object than dictionary for detected sign")
@@ -134,16 +134,18 @@ def display(sign_arr, sign_dict, userdata):
     if sign_dict is not None:
         # print other keys from json dict
         y = 21  # vertical offset to start at
+        ignore = ['ts', 'ref_ts', 'mask_ts']
         for key, value in six.iteritems(sign_dict):
-            y = y + 20
-            # text
-            if type(value) == float:
-                s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
-            else:
-                s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(canvas, s, (DEFAULTW + 1, y), font, .5, (20,20,20),1)
-            cv2.putText(canvas, s, (DEFAULTW + 0, y-1), font, .5, (200,200,200), 1)
+            if key not in ignore:
+                y = y + 20
+                # text
+                if type(value) == float:
+                    s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
+                else:
+                    s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(canvas, s, (DEFAULTW + 1, y), font, .5, (20,20,20),1)
+                cv2.putText(canvas, s, (DEFAULTW + 0, y-1), font, .5, (200,200,200), 1)
 
     cv2.imshow('Sign Detector', canvas)
 

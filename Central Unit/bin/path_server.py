@@ -149,15 +149,17 @@ def display(mask, path_img, path_dict, userdata):
 
     # print other keys from json dict
     y = 1  # vertical offset to start at
+    ignore = ['ts', 'ref_ts', 'mask_ts']
     for key, value in six.iteritems(path_dict):
-        y = y + 20
-        # text
-        if type(value) == float:
-            s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
-        else:
-            s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
-        cv2.putText(canvas, s, (w+1, y), font, .5, (20,20,20),1)
-        cv2.putText(canvas, s, (w+0, y-1), font, .5, (200,200,200), 1)
+        if key not in ignore:
+            y = y + 20
+            # text
+            if type(value) == float:
+                s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
+            else:
+                s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
+            cv2.putText(canvas, s, (w+1, y), font, .5, (20,20,20),1)
+            cv2.putText(canvas, s, (w+0, y-1), font, .5, (200,200,200), 1)
 
     cv2.imshow('Path Detector', canvas)
 

@@ -141,15 +141,15 @@ class MQTTController:
         canvas = np.zeros((h, w*3, 3), np.uint8)
         mask_rgb = cv2.cvtColor(data.mask, cv2.COLOR_GRAY2BGR)
 
-        if data.path_img is not None and data.path_img_ref - data.mask_ts < 0.02:
+        if data.path_img is not None and abs(data.path_img_ref - data.mask_ts) < 0.3:
             # we only draw if the path image is not more than 20 ms older than
             # the mask image (otherwise it is too old)
             path_img_mask = cv2.threshold(cv2.cvtColor(data.path_img, cv2.COLOR_BGR2GRAY), 1 , 255, cv2.THRESH_BINARY_INV)[1]
             mask_rgb = cv2.bitwise_and(mask_rgb, mask_rgb, mask=path_img_mask)
             mask_rgb = cv2.add(mask_rgb, data.path_img)
 
-        if data.sign_img is not None and data.sign_img_ref_ts - data.mask_ts < 0.02:
-            mask_rgb[-data.sign_bb[3]:, w-data.sign_bb[2]:w , :] = data.sign_img
+        if data.sign_img is not None and abs(data.sign_img_ref_ts - data.mask_ts) < 0.3:
+            mask_rgb[-data.sign_bb[2]:, w-data.sign_bb[3]:w , :] = data.sign_img
 
         canvas[0:h, 0:w, :] = mask_rgb
 
@@ -158,29 +158,32 @@ class MQTTController:
         cv2.putText(canvas, s, (1,21), font, .5, (20,20,20),1)
         cv2.putText(canvas, s, (0,20), font, .5, (200,200,200), 1)
 
-        if data.path_dict is not None:
+        ignore = ['ts', 'ref_ts', 'mask_ts']
+        if data.path_dict is not None and abs(data.path_ts - data.mask_ts) < 0.3:
             # print other keys from json dict
             y = 1  # vertical offset to start at
             for key, value in six.iteritems(data.path_dict):
-                y = y + 20
-                if type(value) == types.FloatType:
-                    s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
-                else:
-                    s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
-                cv2.putText(canvas, s, (w+1, y), font, .5, (20,20,20),1)
-                cv2.putText(canvas, s, (w+0, y-1), font, .5, (200,200,200), 1)
+                if key not in ignore:
+                    y = y + 20
+                    if type(value) == types.FloatType:
+                        s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
+                    else:
+                        s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
+                    cv2.putText(canvas, s, (w+1, y), font, .5, (20,20,20),1)
+                    cv2.putText(canvas, s, (w+0, y-1), font, .5, (200,200,200), 1)
 
-        if data.sign_dict is not None:
+        if data.sign_dict is not None and abs(data.sign_img_ref_ts - data.mask_ts) < 0.3:
             # print other keys from json dict
-            y = 21  # vertical offset to start at
+            y = 1  # vertical offset to start at
             for key, value in six.iteritems(data.sign_dict):
-                y = y + 20
-                if type(value) == types.FloatType:
-                    s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
-                else:
-                    s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
-                cv2.putText(canvas, s, (2*w+1, y), font, .5, (20,20,20),1)
-                cv2.putText(canvas, s, (2*w+0, y-1), font, .5, (200,200,200), 1)
+                if key not in ignore:
+                    y = y + 20
+                    if type(value) == types.FloatType:
+                        s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
+                    else:
+                        s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
+                    cv2.putText(canvas, s, (2*w+1, y), font, .5, (20,20,20),1)
+                    cv2.putText(canvas, s, (2*w+0, y-1), font, .5, (200,200,200), 1)
 
         cv2.imshow('viewer', canvas)
 
@@ -253,7 +256,7 @@ if __name__ == '__main__':
 
     # create display window
     cv2.namedWindow('viewer')
-    cv2.moveWindow('viewer', 10, 10)
+    cv2.moveWindow('viewer', 620, 10)
 
     while True:
         # Wait for key (needed to display image)

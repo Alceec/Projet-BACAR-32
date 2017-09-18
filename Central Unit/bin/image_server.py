@@ -410,6 +410,22 @@ if __name__ == '__main__':
         roi[2] = cv2.getTrackbarPos('x', 'parameters')
         roi[3] = cv2.getTrackbarPos('y', 'parameters')
 
+    def getContourStat(contour,image):
+        # returns mean and stdev for the contour int the given image
+        m,n = image.shape[:2]
+        mask = np.zeros((m,n),dtype=np.uint8)
+        cv2.drawContours(mask, [contour], -1, 255, -1)
+        if image.ndim==2:
+            mean,stddev = cv2.meanStdDev(image,mask=mask)
+            return mean,stddev
+        if image.ndim==3:
+            mean = np.zeros(3)
+            stddev = np.zeros(3)
+            mean[0],stddev[0] = cv2.meanStdDev(image[:,:,0],mask=mask)
+            mean[1],stddev[1] = cv2.meanStdDev(image[:,:,1],mask=mask)
+            mean[2],stddev[2] = cv2.meanStdDev(image[:,:,2],mask=mask)
+            return mean,stddev
+
     # process perspective transform
     src = np.array(parameters['A4_calib'],dtype=np.float32)
     M = update_perspective(src)
@@ -606,33 +622,76 @@ if __name__ == '__main__':
                                          )[-2]
 
         if light_contours:
+            #hsv_red_light = np.asarray((90,17,255))
+            #red_light_l,red_light_u = tol_to_range(hsv_red_light,(10,10,10))
+            #mask_red_light = cyclic_inRange(hsv_red_light,red_light_l,red_light_u)
             #light_areas =
             #max_light_area = max(light_areas)
-            for ctr in light_contours:
+            rgb_scores = np.ones((len(light_contours),3))*255
+            for i,ctr in enumerate(light_contours):
                 if 15 < cv2.contourArea(ctr) < 100:
+                    
+                    mean_blob,_ = getContourStat(ctr,hsv_grabbed)#grabbed
+                    
+                    M = cv2.moments(ctr)
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                    # crosshair
+                    x = roi[2]
+                    y = roi[3]
+                    if abs(x-cX)<5 and abs(y-cY)<5:
+                        print('blob mean: ',mean_blob)
+
                     bb_light = cv2.boundingRect(ctr)
-                    crop_light = grabbed[bb_light[1]:bb_light[1]+bb_light[3],bb_light[0]:bb_light[0]+bb_light[2]].copy()
-                    rgb_triplet = crop_light.reshape((crop_light.shape[0]*crop_light.shape[1],3))
-                    med_rgb = np.median(rgb_triplet,axis=0)
-                    print(med_rgb,cv2.contourArea(ctr))
-                    rgb_target = np.array([[37,43,186],[37,85,180],[63,85,38]])
-                    d = np.linalg.norm(rgb_target - med_rgb,axis = 1)
+                    crop_light = hsv_grabbed[bb_light[1]:bb_light[1]+bb_light[3],bb_light[0]:bb_light[0]+bb_light[2]].copy()
+                    hsv_triplet = crop_light.reshape((crop_light.shape[0]*crop_light.shape[1],3))
+                    med_hsv = np.median(hsv_triplet,axis=0)
+                    mean_hsv = np.median(hsv_triplet,axis=0)
+                    # print(med_rgb,cv2.contourArea(ctr))
+                    #rgb_target = np.array([[37,43,186],[37,85,180],[63,85,38]])
+                    hsv_target = np.array([[98,152,191],[40,132,164],[66,88,127]])#high light
+                    #hsv_target = np.array([[89,130,224],[31,116,215],[67,81,159]])#low light
+                    #hsv_target = np.array([[24,28,202],[23,44,195],[21,40,200]])#high light/medhsv
+
+                    #rgb_target = np.array([[100,134,233],[100,150,221],[129,158,113]])#low light
+                    #rgb_target_high = np.array([[96,92,189],[94,112,164],[111,126,101]]) #high light
+                    #rgb_target = .5*(rgb_target_high+rgb_target_low)
+
+                    d = np.linalg.norm(hsv_target - mean_blob,axis = 1)
+                    d = hsv_target[:,0] - mean_blob[0]
+                    rgb_scores[i,:] = d
+
+                    # print('rgb_scores:',rgb_scores[i,:])
 
                     traffic_list = [('red',MSG_SERVER_TRAFFIC_RED,red_monostable),
                             ('orange',MSG_SERVER_TRAFFIC_ORANGE,orange_monostable),
                             ('green',MSG_SERVER_TRAFFIC_GREEN,green_monostable)]
 
 
-                    light_no = np.argmin(d)
-                    mono = six.next(traffic_list[light_no][2])
-                    if mono:
-                        client.publish(traffic_list[light_no][1],'')
-                        logging.info('traffic light detected [%s] [%s] %f '%(traffic_list[light_no][0],str(med_rgb),cv2.contourArea(ctr)))
-
-                    break;
-
+ 
+                    #break;
+            # find the best candidate
+		    # print('scores',scores)
+            # scores normalization with respect to the higher value
+            scores = rgb_scores/np.amin(rgb_scores,axis=1,keepdims=True)
+            # contour with the shortest distance to one of the targets
+            minscore_per_blob = np.min(rgb_scores,axis=1)
+            best = np.argmin(minscore_per_blob)
+            # closest target (red/orange/green)
+            best_color = np.argmin(scores[best,:])
+            print(minscore_per_blob[best],best,best_color,scores[best,:],i)
+            # retrieve target BB for display purpose
+            bb_light = cv2.boundingRect(light_contours[best])
+            if True:#np.min(scores[best,:]) < .4:
+                mono = six.next(traffic_list[best_color][2])
+                print('scores:',scores[i,:],traffic_list[best_color][1],mean_hsv)
+                if mono:
+                    client.publish(traffic_list[best_color][1],'')
+                    logging.info('traffic light detected [%s] [%s] %f '%(traffic_list[best_color][0],str(med_hsv),cv2.contourArea(ctr)))
             else:
                 light_contours = None
+        else:
+            light_contours = None
 
         channels = [['rgb', rgb], ['mask', mask], ['mask+rgb', masked_rgb], ['hsv', hsv],
                     ['red_s',mask_red_sign],['red+rgb',masked_red_rgb],
