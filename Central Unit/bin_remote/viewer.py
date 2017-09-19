@@ -147,7 +147,7 @@ class MQTTController:
             mask_rgb = cv2.add(mask_rgb, data.path_img)
 
         if data.sign_img is not None and abs(data.sign_img_ref_ts - data.mask_ts) < 0.3:
-            mask_rgb[-data.sign_bb[2]:, w-data.sign_bb[3]:w , :] = data.sign_img
+            mask_rgb[-data.sign_bb[3]:, w-data.sign_bb[2]:w , :] = data.sign_img
 
         canvas[0:h, 0:w, :] = mask_rgb
 

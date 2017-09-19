@@ -428,7 +428,7 @@ if __name__ == '__main__':
 
     # process perspective transform
     src = np.array(parameters['A4_calib'],dtype=np.float32)
-    M = update_perspective(src)
+    perspectiveM = update_perspective(src)
 
     # create windows and parameter sliders
     cv2.namedWindow('parameters')
@@ -524,7 +524,7 @@ if __name__ == '__main__':
             else:
                 grabbed = grabbed[::sub,-1::-sub,:].copy()
         if birdsview:
-            rgb = cv2.warpPerspective(grabbed, M, WARP_IMAGE_SIZE,borderValue = parameters['green_rgb'])
+            rgb = cv2.warpPerspective(grabbed, perspectiveM, WARP_IMAGE_SIZE,borderValue = parameters['green_rgb'])
         else:
             rgb = grabbed
 
@@ -634,14 +634,14 @@ if __name__ == '__main__':
             for i,ctr in enumerate(light_contours):
 
                 if 15 < cv2.contourArea(ctr) < 100:
-                    
+
                     mean_blob,_ = getContourStat(ctr,hsv_grabbed)#grabbed
 
                     rec[i,1:] = mean_blob
 
-                    M = cv2.moments(ctr)
-                    cX = int(M["m10"] / M["m00"])
-                    cY = int(M["m01"] / M["m00"])
+                    momentsM = cv2.moments(ctr)
+                    cX = int(momentsM["m10"] / momentsM["m00"])
+                    cY = int(momentsM["m01"] / momentsM["m00"])
                     # crosshair
                     x = roi[2]
                     y = roi[3]
@@ -851,7 +851,7 @@ if __name__ == '__main__':
             x = roi[2]
             y = roi[3]
             src[p,:] = [x,y]
-            M = update_perspective(src)
+            perspectiveM = update_perspective(src)
             logging.info('set A4 calibration:%d'%p)
 
         elif k & 0xFF == ord('b'): #activate bird's view
