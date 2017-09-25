@@ -92,7 +92,7 @@ float getSerialBinaryFloat() {
       buff[i] = (byte) tmp;
     }
   }
-  //On some embedded chips cassting buff as an int will cause exceptions
+  //On some embedded chips casting buff as an int will cause exceptions
   memcpy(&result, buff, sizeof(float));
   return result;
 }
