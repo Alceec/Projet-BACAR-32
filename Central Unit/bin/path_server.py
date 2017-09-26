@@ -103,24 +103,21 @@ def on_message(client, userdata, msg):
             # - a one-channel numpy image that can be used to visualize the path (for debugging)
             (path_dict, path_img) = userdata.detector.detect(mask)
 
-            if path_dict is None:
-                logging.info("Detector returned None for path_dict")
-                return
+            ts = time.time()
+            if path_dict is not None:
+                if type(path_dict) is not dict:
+                    logging.error("Detector return other kind of object than dictionary for path_dict")
+                    sys.exit(-1)
 
-            if type(path_dict) is not dict:
-                logging.error("Detector return other kind of object than dictionary for path_dict")
-                sys.exit(-1)
+                # add the timestamp of when the path was generated, as well as the
+                # timestamp of the mask that it computed the path for
+                path_dict['ts'] = ts
+                path_dict['mask_ts'] = mask_ts
+                path_json = json.dumps(path_dict)
+                # logging.info("Detection returned: %s", path_json)
+                client.publish(MSG_PATH_JSON, path_json, qos=0)
 
-            # add the timestamp of when the path was generated, as well as the
-            # timestamp of the mask that it computed the path for
-            path_dict['ts'] = time.time()
-            path_dict['mask_ts'] = mask_ts
-            path_json = json.dumps(path_dict)
-            # logging.info("Detection returned: %s", path_json)
-            client.publish(MSG_PATH_JSON, path_json, qos=0)
             if path_img is not None:
-                ts = path_dict['ts']
-                mask_ts = path_dict['mask_ts']
                 payload = ts_ref_rgb_to_payload(ts, mask_ts, path_img)
                 client.publish(MSG_PATH_IMG, payload, qos=0)
 
@@ -148,18 +145,19 @@ def display(mask, path_img, path_dict, userdata):
     cv2.putText(canvas, s, (0,20), font, .5, (200,200,200), 1)
 
     # print other keys from json dict
-    y = 1  # vertical offset to start at
-    ignore = ['ts', 'ref_ts', 'mask_ts']
-    for key, value in six.iteritems(path_dict):
-        if key not in ignore:
-            y = y + 20
-            # text
-            if type(value) == float:
-                s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
-            else:
-                s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
-            cv2.putText(canvas, s, (w+1, y), font, .5, (20,20,20),1)
-            cv2.putText(canvas, s, (w+0, y-1), font, .5, (200,200,200), 1)
+    if path_dict is not None:
+        y = 1  # vertical offset to start at
+        ignore = ['ts', 'ref_ts', 'mask_ts']
+        for key, value in six.iteritems(path_dict):
+            if key not in ignore:
+                y = y + 20
+                # text
+                if type(value) == float:
+                    s = '%s:%.2f' % (str(key)[0:min(len(str(key)), 10)], float(value))
+                else:
+                    s = '%s:%s' % (str(key)[0:min(len(str(key)), 10)], str(value))
+                cv2.putText(canvas, s, (w+1, y), font, .5, (20,20,20),1)
+                cv2.putText(canvas, s, (w+0, y-1), font, .5, (200,200,200), 1)
 
     cv2.imshow('Path Detector', canvas)
 

@@ -100,7 +100,7 @@ class Arena(object):
         return ima
 
 class Camera(object):
-    def __init__(self,x0,y0,z0,v_angle=np.pi/5,h_angle=np.pi/4,v_dir=np.pi/4,h_dir=0,
+    def __init__(self,x0,y0,z0,v_angle=np.pi/5,h_angle=np.pi/4,v_dir=np.pi/3.75,h_dir=0,
                       warp_size=(200,200)):
         self.x0 = x0
         self.y0 = y0
@@ -227,12 +227,13 @@ class Car(object):
             s_path = '../bin/cropped_signs'
             p = path.join(s_path,sign)
 
-            if random.random() > .9: #send image from time to time...
+            if random.random() > .5: #send image from time to time...
                 f = random.choice(os.listdir(p))
                 cropped_sign = cv2.imread(os.path.join(p,f))
                 m,n,_ = cropped_sign.shape
                 ts = time()
-                bb = [100,100,m,n]
+                bb = [100,100,n,m]
+                #logging.info("Sending sign with bb = %s" % (str(bb)))
                 payload = ts_bb_signarray_to_payload(ts, bb, cropped_sign)
                 client.publish(MSG_SERVER_SIGN_ARRAY, payload)
 

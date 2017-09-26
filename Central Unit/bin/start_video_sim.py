@@ -30,7 +30,7 @@ path_cmd = [PYTHON3, '../bin/path_server.py', '--detector', PATH_MODULE]
 # sign_cmd = [PYTHON3, '../bin/sign_server.py', '--detector', SIGN_MODULE, '--display']
 sign_cmd = [PYTHON3, '../bin/sign_server.py', '--detector', SIGN_MODULE]
 viewer_cmd = [PYTHON2, '../bin_remote/viewer.py', '--local']
-imageserver_cmd = [PYTHON2, '../bin/image_server.py', '--bird', '--vflip', '--filter', '--show', args.video_file] # includes traffic light detector
+imageserver_cmd = [PYTHON2, '../bin/image_server.py', '--vflip', '--filter', '--show', args.video_file] # includes traffic light detector
 
 commands = [statemachine_cmd, path_cmd, sign_cmd, viewer_cmd, imageserver_cmd]
 subprocs = [subprocess.Popen(cmd) for cmd in commands]

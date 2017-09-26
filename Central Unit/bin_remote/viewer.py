@@ -254,7 +254,7 @@ if __name__ == '__main__':
 
     # create display window
     cv2.namedWindow('viewer')
-    cv2.moveWindow('viewer', 620, 10)
+    cv2.moveWindow('viewer', 680, 10)
 
     while True:
         # Wait for key (needed to display image)

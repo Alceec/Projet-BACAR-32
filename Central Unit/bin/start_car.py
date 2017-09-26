@@ -27,7 +27,7 @@ args = get_arguments()
 statemachine_cmd = [PYTHON3, '../bin/sm_server.py', '--machine', STATEMACHINE_MODULE]
 path_cmd = [PYTHON3, '../bin/path_server.py', '--detector', PATH_MODULE]
 sign_cmd = [PYTHON3, '../bin/sign_server.py', '--detector', SIGN_MODULE]
-imageserver_cmd = [PYTHON2, '../bin/image_server.py', '--bird', '--hide', '--filter'] #includes traffic light detector
+imageserver_cmd = [PYTHON2, '../bin/image_server.py', '--hide', '--filter'] 
 driver_cmd = [PYTHON2, '../bin/driver.py']
 
 commands = [statemachine_cmd, path_cmd, sign_cmd, imageserver_cmd, driver_cmd]

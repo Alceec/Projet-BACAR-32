@@ -99,9 +99,7 @@ def on_message(client, userdata, msg):
             #    estimated distance, ...)
             sign_dict = userdata.detector.detect((x0, y0, w, h), sign_arr)
 
-            if sign_dict is None:
-                logging.warning("Detector returned None for sign_dict")
-            else:
+            if sign_dict is not None:
                 if type(sign_dict) is not dict:
                     logging.error("Detector return other kind of object than dictionary for detected sign")
                     sys.exit(-1)

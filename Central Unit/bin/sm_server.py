@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 """
 Listen to MQTT messages sent by the image server (in particular: the boolean mask)
 and emit MQTT messages that indicate path information.
@@ -105,21 +103,26 @@ def on_message(client, userdata, msg):
     # internal queue (in userdata.messages)
     if msg.topic == MSG_PATH_JSON:
         e = Event(Event.PATH, json.loads(msg.payload.decode("utf-8")))
+        userdata.messages.append(e)
     elif msg.topic == MSG_ANALYZER_SIGN_JSON:
         e = Event(Event.SIGN, json.loads(msg.payload.decode("utf-8")))
+        userdata.messages.append(e)
     elif msg.topic == MSG_DRIVER_STATUS_JSON:
         e = Event(Event.CAR, json.loads(msg.payload.decode("utf-8")))
-    elif msg.topic == MSG_SERVER_TRAFFIC_RED:
-        e = Event(Event.TRAFFICLIGHT, 'RED')
-    elif msg.topic == MSG_SERVER_TRAFFIC_ORANGE:
-        e = Event(Event.TRAFFICLIGHT, 'ORANGE')
-    elif msg.topic == MSG_SERVER_TRAFFIC_GREEN:
-        e = Event(Event.TRAFFICLIGHT, 'GREEN')
+        userdata.messages.append(e)
+    #elif msg.topic == MSG_SERVER_TRAFFIC_RED:
+    #    e = Event(Event.TRAFFICLIGHT, 'RED')
+    #    userdata.messages.append(e)
+    #elif msg.topic == MSG_SERVER_TRAFFIC_ORANGE:
+    #    e = Event(Event.TRAFFICLIGHT, 'ORANGE')
+    #    userdata.messages.append(e)
+    #elif msg.topic == MSG_SERVER_TRAFFIC_GREEN:
+    #    e = Event(Event.TRAFFICLIGHT, 'GREEN')
+    #    userdata.messages.append(e)
     elif msg.topic == MSG_COMMAND:
-        logging.info("got COMMAND: " + msg.payload.decode("utf-8"))
+        logging.info("got COMMAND from remote operator: " + msg.payload.decode("utf-8"))
         e = Event(Event.CMD, msg.payload.decode("utf-8"))
-
-    userdata.messages.append(e)
+        userdata.messages.append(e)
 
 
 def setup_logging():

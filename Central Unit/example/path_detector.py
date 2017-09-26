@@ -52,7 +52,7 @@ def detect(mask):
     img_height, img_width = mask.shape
     x0 = int(img_width / 2)  # center of the image
     # row to sample (first row at the top is row zero)
-    y0 = int(img_height*.85)
+    y0 = int(img_height*.75)
 
     # assume the car center is at coordinate (img_width/2, img_height)
     car_center = (x0, img_height)

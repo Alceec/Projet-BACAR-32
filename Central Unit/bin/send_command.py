@@ -57,10 +57,10 @@ def get_parameters(args):
     params = {'mqtt_host': 'localhost',
               'mqtt_port': 1883}
     # command-line arguments override config file
-    if args.remote:
-        params['mqtt_host'] = "bacar"
     if args.mqtt_host is not None:
         params['mqtt_host'] = args.mqtt_host
+    if args.remote:
+        params['mqtt_host'] = "bacar"
     if args.mqtt_port is not None:
         params['mqtt_port'] = args.mqtt_port
     params['message'] = args.message
