@@ -47,17 +47,18 @@
     40
   ],
   "camera":"orange",
+  "filter":true,
   "flip_horiz":1,
   "flip_vert":1,
   "green_hsv":[
-    82,
-    154,
+    84,
+    132,
     116
   ],
   "green_rgb":[
-    47,
-    173,
-    103
+    104,
+    116,
+    56
   ],
   "green_tol":[
     23,
@@ -82,22 +83,22 @@
     29
   ],
   "roi":[
-    50,
-    100,
-    281,
-    79
+    0,
+    0,
+    20,
+    130
   ],
   "rotate":0,
   "subsampling":1,
   "target_hsv":[
-    166,
-    157,
-    52
+    84,
+    132,
+    116
   ],
   "target_tol":[
-    20,
-    49,
-    29
+    23,
+    62,
+    70
   ],
   "video_size":[
     320,
