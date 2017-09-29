@@ -1,0 +1,7 @@
+{
+  "arena_image": "./arena_3ways.png",
+  "STOP": [],
+  "LEFT": [],
+  "RIGHT": [],
+  "p0": [300,540,1.5]
+}
