@@ -14,7 +14,7 @@ SIGN_MODULE = 'sign_detector' # = ./sign_detector.py
 
 
 def get_arguments():
-    parser = argparse.ArgumentParser(description='Start Video Simulation. Launches IMAGE SERVER (in birdsview mode) with video file; PATH DETECTOR, SIGN DETECTOR, TRAFFIC LIGHT DETECTOR, and STATE MACHINE.')
+    parser = argparse.ArgumentParser(description='Start Video Simulation. Launches IMAGE SERVER with video file; PATH DETECTOR, TRAFFIC LIGHT DETECTOR, and STATE MACHINE.')
     parser.add_argument('video_file', help='specify the video file to play')
     return parser.parse_args()
 

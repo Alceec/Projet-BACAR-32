@@ -67,7 +67,7 @@ def on_message(client, userdata, msg):
             y = int(obj["y"])
             u = float(obj["u"])
             v = float(obj["v"])
-            logging.info("From MQTT -> arduino: x=%d,y=%d,u=%f,v=%f" % (x, y, u, v))
+            #logging.info("From MQTT -> arduino: x=%d,y=%d,u=%f,v=%f" % (x, y, u, v))
         except Exception as e:
             logging.error("Error decoding json payload to send to arduino. Payload = %s" % msg.payload)
 
@@ -88,18 +88,19 @@ def publish_serial(ser, mqtt_client):
     raw = ser.read(numbytes)
     (x, y, u, v) = struct.unpack(fmt, raw)
     payload = '{"x":%d, "y":%d, "u":%f,"v":%f}' % (x, y, u, v)
-    logging.info("From arduino -> MQTT: %s" % payload)
+    #logging.info("From arduino -> MQTT: %s" % payload)
     mqtt_client.publish(mqtt_config.MSG_DRIVER_STATUS_JSON, payload)
 
 
 
 
 def setup_logging():
-    log_file_name = "%s.log" % __file__
-    print("Logging to " + log_file_name)
-    create_logger(log_file_name, scriptname="Driver")
+    log_file_name = "./%s.log" % path.basename(__file__)
+    scriptname = "%s" % path.basename(__file__)
+    print("Logging to " + path.abspath(log_file_name))
+    create_logger(log_file_name, scriptname=scriptname)
     # output python version
-    logging.info("Running on python version" + sys.version)
+    logging.info("Running on python version" + sys.version.replace("\n", "\t"))
 
 
 def get_arguments():

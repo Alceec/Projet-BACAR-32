@@ -20,7 +20,7 @@ PYTHON3 = 'python3'
 
 
 def get_arguments():
-    parser = argparse.ArgumentParser(description='%s: Launch simulator, path detector, sign detector, traffic light detector and state machine' % __file__)
+    parser = argparse.ArgumentParser(description='%s: Launch simulator, path detector, sign detector, and state machine' % __file__)
     parser.add_argument('--arena', help='the simulated arena to use (DEFAULT=%s)' % DEFAULT_ARENA, default=DEFAULT_ARENA)
     return parser.parse_args()
 
