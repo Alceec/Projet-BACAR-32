@@ -1,13 +1,16 @@
 #include <bacarComm.h>
 
-#define LED 13
-
+// Définit l'objet associé au canal de communication avec l'Orange PI
 BacarComm comm;
+// Contiendra l'état actuel de la LED
+bool ledState;
+
 
 void setup() {
-  // put your setup code here, to run once:
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, LOW);
+  // Configure la LED pour pouvoir l'utiliser dans loop()
+  pinMode(LED_BUILTIN, OUTPUT);
+  ledState = LOW;
+  // Initialise l'objet comm
   comm.begin();
 }
 
@@ -16,15 +19,17 @@ void loop() {
   int32_t x, y;
   float u, v;
   
-  // put your main code here, to run repeatedly:
+  // Vérifie si un nouveau message de l'Orange PI a été reçu
   if (comm.newMessage() == true) {
-    digitalWrite(LED, HIGH);
+    // On lit les 4 valeurs contenues dans le message
     x = comm.xRead();
     y = comm.yRead();
     u = comm.uRead();
     v = comm.vRead();
-    comm.sendMessage(0, x, 0, u);
-    comm.sendMessage(1, y, 1, v);
-    comm.sendMessage(-x, -1, -u, -1);  
+    // et on les renvoie à l'Orange PI
+    comm.sendMessage(x, y, u, v);
+    // On change l'état de la LED pour indiquer qu'on a bien reçu le message
+    ledState = not(ledState);
+    digitalWrite(LED_BUILTIN, ledState);
   }
 }
