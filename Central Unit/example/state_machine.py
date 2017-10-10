@@ -15,9 +15,10 @@
    and decide on how to drive the car correspondingly. See the description of
    the `loop` method below for more details.
 
-   This simplistic State Machine responds to remote commands "GO" and "STOP".
-   In addition, it listens to path information from the Simplistic Path
-   detector, and actuates accordingly.
+   This simplistic State Machine responds to remote commands "GO", "STOP"
+   and "TEST_COMM". In addition, it listens to path information from the
+   Simplistic Path detector, and sends actuation commands that are
+   compatible with the simulator.
 """
 
 
@@ -65,6 +66,15 @@ def loop():
         elif event.type == Event.CMD and event.val == "STOP":
             logging.info("remotely ordered to stop")
             emergency_stop()  # emergency_stop is further defined below
+        elif event.type == Event.CMD and event.val == "TEST_COMM":
+            # When it receives this command, the state machine sends a test
+            # message to the Arduino. If the Arduino is programmed with
+            # "testComm.ino", the LED of the Arduino will change its state and
+            # the Arduino will send the message back. This can be seen in the
+            # remote terminal that runs "start_car.py" as a logging message (see
+            # Event.CAR below). For more info, see the sreencast describing
+            # "testComm.ino".
+            Car.send(5, -10, 3.14, -37.2)
         # Note that you can decide to act on  other evant.val value for events
         # of type Event.CMD!
         elif event.type == Event.PATH:
