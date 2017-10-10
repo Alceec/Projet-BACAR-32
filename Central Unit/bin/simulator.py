@@ -367,11 +367,12 @@ def on_message(client, userdata, msg):
         #print(msg.topic)
     if msg.topic == MSG_DRIVER_SEND_JSON: # change car behaviour
         d = json.loads(msg.payload.decode('utf-8'))
-        #logging.info('json %s'%str(d))
-        # d is a dict with keys x,y,u,v where x and y have integer payloads
-        # and u,v, have float payloads. interpret u as speed and v as angle
-        userdata.speed = -d['u'] #speed and angle need to be inverted since our origin is at (0,0) and the car center is at (x, y) with y positive facing towards (0,0)
-        userdata.rel_angle = -d['v']
+        if d['x'] == 0 and d['y'] == 0:
+            #logging.info('json %s'%str(d))
+            # d is a dict with keys x,y,u,v where x and y have integer payloads
+            # and u,v, have float payloads. interpret u as speed and v as angle
+            userdata.speed = -d['u'] #speed and angle need to be inverted since our origin is at (0,0) and the car center is at (x, y) with y positive facing towards (0,0)
+            userdata.rel_angle = -d['v']
 
 
 
