@@ -2,15 +2,21 @@
 *.pyc
 *.log
 *~
+*.json
+Central Unit/example/start*
 
-bin/*
-bin_remote/*
-data/*
-misc/*
+Central Unit/example/.gitignore
+Central Unit/example/image_server.py
+Central Unit/example/send_command.py
+
+Central Unit/bin/*
+Central Unit/bin_remote/*
+Central Unit/data/*
+Central Unit/misc/*
 __pycache__/*
-template/*
-tools/*
-blink/*
-testComm/*
-testMotors/*
+Central Unit/template/*
+Central Unit/tools/*
+Arduino/blink/*
+Arduino/testComm/*
+Arduino/testMotors/*
 
