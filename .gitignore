@@ -4,6 +4,10 @@
 *~
 *.json
 
+Central Unit/example/start*
+Central Unit/example/config_server.json
+Central Unit/example/image_server.py
+Central Unit/example/send_command.py
 
 Central Unit/bin/*
 Central Unit/bin_remote/*
