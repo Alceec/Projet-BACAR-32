@@ -3,11 +3,7 @@
 *.log
 *~
 *.json
-Central Unit/example/start*
 
-Central Unit/example/.gitignore
-Central Unit/example/image_server.py
-Central Unit/example/send_command.py
 
 Central Unit/bin/*
 Central Unit/bin_remote/*
