@@ -13,11 +13,11 @@ void setup() {
   // Initialise l'objet comm
   comm.begin();
 }
-
+  int32_t x = 0 , y = 0 ;
+  float u = 0, v = 0 ;
 
 void loop() {
-  int32_t x, y;
-  float u, v;
+
   
   // Vérifie si un nouveau message de l'Orange PI a été reçu
   if (comm.newMessage() == true) {
@@ -32,4 +32,8 @@ void loop() {
     ledState = not(ledState);
     digitalWrite(LED_BUILTIN, ledState);
   }
+
+
+  
+  
 }

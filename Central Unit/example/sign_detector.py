@@ -11,6 +11,7 @@
 import logging
 import numpy as np
 import cv2
+from PIL import Image
 
 
 # Log which sign detector is being used. This appears in the output. Useful
@@ -41,4 +42,5 @@ def detect(bb, sign):
     to the dictionary.
     """
     (x0, y0, w, h) = bb
+    #Image.fromarray( bb, "RGB" ).show() 
     return {'sign': 'STOP', 'x0': x0, 'y0': y0, 'w': w, 'h': h}

@@ -14,38 +14,140 @@
 
    and decide on how to drive the car correspondingly. See the description of
    the `loop` method below for more details.
-
-   This simplistic State Machine responds to remote commands "GO", "STOP"
-   and "TEST_COMM". In addition, it listens to path information from the
-   Simplistic Path detector, and sends actuation commands that are
-   compatible with the simulator.
 """
-
-
+#testing
 import logging
 import time
 from event import Event
 from car import Car
 
-# constants for the different states in which we can be operating
-IDLE = 1
-STOPPED = 2
-MOVING = 3
-# You can add other states here
 
+class InnerState : 
+    IN = 1
+    DONE = 0
+
+
+class CarState : 
+    # constants for the different states in which we can be operating
+    IDLE = 1
+    STOPPED = 2
+    MOVING = 3 
+    # You can add other states here
+class Direction : 
+    left = -1 
+    right = 1 
 
 # Setup up the state machine. The following code is called when the state
 # machine is loaded for the first time.
-logging.info('Simplistic StateMachine has been initialized')
+logging.info('State machine Initialize. Ready to rock, sir !')
 
 # The next variable is a global variable used to store the state between
 # successive calls to loop()
-state = IDLE
+state = CarState.IDLE
+MainAction = None 
+SubMovement = None 
 
+def StartTimer(interval) : 
+    time_at_the_beginning = time.time()
+    time_difference = ( time_at_the_beginning + interval) - time.time() 
+    while ( time_difference > 0 ) : 
+        yield InnerState.IN
+        time_difference = ( time_at_the_beginning + interval) - time.time()
+    yield InnerState.DONE
+
+def Stop_Car() : 
+    global state
+    global SubMovement
+    global MainAction
+    Car.send(0, 0, 0, 0) 
+    SubMovement = None 
+    MainAction = None
+    state = CarState.STOPPED 
+    logging.info( "you just stopped the car" ) 
+
+
+
+################# subfunctions ( movement ) ################################## 
+
+def Rotate(angle) :                                                   
+    logging.info ( "the angle : "+ str( angle) ) 
+    Car.send(0, 0, 0., angle) 
+    time.sleep(0.0001) 
+    Car.send(0, 0, 0, 0) 
+    time.sleep( 0.01 ) 
+    yield InnerState.DONE
+
+def GoForth( time_interval, speed ) : 
+    timer = StartTimer( time_interval ) 
+    Car.send( 0, 0, speed, 0.)
+    while ( next(timer) != InnerState.DONE ) : 
+        yield InnerState.IN
+    yield InnerState.DONE
+
+
+def SubSpiralRoutine ( speed, convergence ) : 
+    for i in range ( 7200 ) : 
+        Car.send(0, 0, speed, i/ convergence ) 
+        logging.info( " in the spiral ! LOL ! " ) 
+        yield InnerState.IN
+    yield InnerState.DONE
+
+def Turn( angle, radius, speed  ) : 
+    ratio_angelOfRotation_Radius = 5       #gotta determine by trial and error
+    distance = angle * radius 
+    time_to_make_rotation = speed * distance  
+
+    timer = StartTimer(time_to_make_rotation)
+
+    Car.send( 0, 0, speed, ratio_angelOfRotation_Radius * radius)
+    while (next( timer ) != InnerState.DONE ) : 
+        yield InnerState.IN
+    yield InnerState.DONE
+    
+    
+    
+##############################################################################
+
+###################### Main Action ###########################################
+
+def Square(side_length , speed ) : 
+    for i in range(4) : 
+        logging.info( " going forth " ) 
+        yield GoForth(side_length / speed , speed)
+        logging.info( " turning " )
+        yield Rotate(90) 
+    Stop_Car()
+    yield None
+
+def Spiral(speed, convergence_speed ) :                  #the higher the convergence speed the less time it'll take
+   logging.info( "spiral being called " ) 
+   yield SubSpiralRoutine(speed, convergence_speed )  
+   Stop_Car()
+   yield None
+
+def ForhtMainAction (interval) : 
+    yield GoForth(interval, 3) 
+    Stop_Car()
+    yield None 
+
+def TurnToSide(side) :            
+    yield Turn ( 90 * side , 1, 3 ) 
+    Stop_Car() 
+    yield None
+
+def TestAction() : 
+    yield Rotate(90) 
+    time.sleep( 3 ) 
+    yield Rotate(90) 
+    time.sleep( 3 ) 
+    yield Rotate(90)
+    Stop_Car() 
+    yield None
+##################################################################################
 
 def loop():
     '''State machine control loop.
-    Like an arduino program, this method is called repeatedly: whenever
+    Like an arduino program, this function is called repeatedly: whenever
     it exits it is called again. Inside the function, call:
     - time.sleep(x) to sleep for x seconds (x can be fractional)
     - Event.poll() to get the next event (output of Path and/or Sign detector,
@@ -56,37 +158,41 @@ def loop():
       are ignored while u encodes the speed and v the relative angle to turn
       to.
     '''
-    global state
+    global state  # define state to be a global variable
+    global SubMovement
+    global MainAction
     event = Event.poll()
-    if event is not None:
+    if event is not None:        # only if there is some change ( instantiate action ) #me
         if event.type == Event.CMD and event.val == "GO":
-            # A command by the remote computer to start the car
-            logging.info("remotely ordered to GO!")
-            state = MOVING
+            logging.info( " Up and running, boss !" ) 
+        elif event.type == Event.CMD and event.val == "SPIRAL" : 
+            MainAction = Spiral(10, 10) 
+            state = CarState.MOVING
+        elif event.type == Event.CMD and event.val == "TEST" : 
+            #state = CarState.MOVING
+            #MainAction = TestAction() 
+            Car.send(0, 0, 10., 30. ) 
+
+        elif event.type == Event.CMD and event.val == "FORTH":
+            MainAction = ForhtMainAction(3) 
+            state = CarState.MOVING
+        elif event.type == Event.CMD and event.val == "SQUARE": 
+            MainAction = Square(5, 5)
+            state = CarState.MOVING
         elif event.type == Event.CMD and event.val == "STOP":
-            logging.info("remotely ordered to stop")
-            emergency_stop()  # emergency_stop is further defined below
-        elif event.type == Event.CMD and event.val == "TEST_COMM":
-            # When it receives this command, the state machine sends a test
-            # message to the Arduino. If the Arduino is programmed with
-            # "testComm.ino", the LED of the Arduino will change its state and
-            # the Arduino will send the message back. This can be seen in the
-            # remote terminal that runs "start_car.py" as a logging message (see
-            # Event.CAR below). For more info, see the sreencast describing
-            # "testComm.ino".
-            Car.send(5, -10, 3.14, -37.2)
-        # Note that you can decide to act on  other evant.val value for events
-        # of type Event.CMD!
+            Stop_Car()
+
+
         elif event.type == Event.PATH:
             # You received the PATH dictionary emitted by the path detector
-            # you can access this dict by event.val
+            # you can access this dictionary in event.val
             # actuate car coresspondingly, change state if relevant
-            # Here we actuate the car by calling the handle_path_event function
-            handle_path_event(event)  # handle_path_event is defined below
+            pass
         elif event.type == Event.SIGN:
             # You received the SIGN dictionary emitted by the sign detector
-            # you can access this dict by event.val
+            # you can access this dictionary in event.val
             # actuate car coresspondingly, change state if relevant
+            #logging.info( "hey i just received something ! " ) 
             pass
         elif event.type == Event.CAR:
             # You received a message from the arduino that is operating the car
@@ -98,35 +204,9 @@ def loop():
             logging.info("Received CAR event with x=%d, y=%d, u=%f, v=%f" %
                 (event.val['x'], event.val['y'], event.val['u'], event.val['v']))
             pass
-
-
-def emergency_stop():
-    global state
-    Car.send(0, 0, 0.0, 0.0)
-    state = STOPPED
-
-
-def handle_path_event(event):
-    global state
-    path_dict = event.val
-    if state == MOVING:
-        # use the middle-of the road path return by the path detector
-        heading = path_dict['heading']
-    else:
-        # we are in a state that we shouldn't be actuating
-        return
-
-    actuate_heading(heading)
-
-
-def actuate_heading(heading):
-    speed = 4.0
-
-    if heading < -15:  # ignore absurd angles
-        heading = -15.0
-        speed = 3.0  # turn quicker
-    if heading > 15:  # ignore absurd angles
-        heading = 15.0
-        speed = 3.0
-
-    Car.send(0, 0, speed, heading)
+    else : 
+        if state == CarState.MOVING : 
+            if SubMovement == None or next( SubMovement ) == InnerState.DONE:        # next has to come after !!!!!!! 
+                SubMovement = next(MainAction) 
+                logging.info ( "Calling next subroutine " ) 
+              

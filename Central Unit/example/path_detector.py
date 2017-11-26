@@ -19,6 +19,7 @@
 import logging
 import numpy as np
 import cv2
+from PIL import Image
 
 from scipy import ndimage
 
@@ -27,8 +28,11 @@ from scipy import ndimage
 # for ensuring that the correct path detector is being used.
 logging.info('Simplistic PathDetector has been initialized')
 
+test = False
 
 def detect(mask):
+    global test 
+
     """This function receives a binarized image in its `mask` argument
     (`mask` is a h x w  numpy array where h is the height and w the width).
     The non-zero pixels in the array encode road boundaries.
@@ -95,6 +99,9 @@ def detect(mask):
 
     # Return the path dictionary and image. The path_dict will be sent
     # to the state machine. The path_img is displayed in the viewer
+    if not test : 
+        #Image.fromarray( path_img ).show()            #code to show image #me
+        test = True
     return (path_dict, path_img)
 
 

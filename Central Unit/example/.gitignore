@@ -1,0 +1,10 @@
+__pycache__
+*.json
+*.log
+README
+image_server.py
+send_command.py
+start_car.py
+start_sign_detector.py
+start_sim.py
+start_video_sim.py

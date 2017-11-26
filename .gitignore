@@ -1,3 +1,16 @@
+*.md
 *.pyc
 *.log
 *~
+
+bin/*
+bin_remote/*
+data/*
+misc/*
+__pycache__/*
+template/*
+tools/*
+blink/*
+testComm/*
+testMotors/*
+
