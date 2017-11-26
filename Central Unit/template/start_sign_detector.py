@@ -1,1 +1,0 @@
-../bin/start_sign_detector.py

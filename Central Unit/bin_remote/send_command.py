@@ -1,1 +1,0 @@
-../bin/send_command.py
