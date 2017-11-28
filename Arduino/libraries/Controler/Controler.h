@@ -11,7 +11,7 @@ class Controler {
   public :
     Controler(BacarMotor mot1, BacarMotor mot2);
     void Move( float Angular_Speed, float radius_from_center ); 
-    
+    const int INF = 1000;
 };
 
 #endif
