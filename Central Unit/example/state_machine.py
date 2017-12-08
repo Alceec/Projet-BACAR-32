@@ -172,14 +172,9 @@ def loop():
 
             pass
         elif event.type == Event.CAR:
-            # You received a message from the arduino that is operating the car
-            # In this case, event.val contains a dictionary with keys x,y,u,v
-            # where x and y are ints; u,v, are floats.
-            # Act on this message depending on how you implemented the arduino
-            # (e.g., is the arduino sending that there is an obstacle in front
-            # and you should stop ?)
-            logging.info("Received CAR event with x=%d, y=%d, u=%f, v=%f" %
-                (event.val['x'], event.val['y'], event.val['u'], event.val['v']))
+        ''' go check the scripts on arduino to know where these values come from'''
+            if event.val['u'] <= 20 '''cm''': 
+                Stop_Car()
             pass
     else : 
         if state == CarState.MOVING : 

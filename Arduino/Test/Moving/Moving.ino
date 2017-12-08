@@ -1,9 +1,9 @@
 #include <Controler.h>
 #include <bacarComm.h>
 #include <bacarMotor.h>
+#include <ProximitySensor.h> 
 
-
-
+ProximitySensor ProxiSens = ProximitySensor(20) 
 BacarComm comm;
 Controler control = Controler(BacarMotor motor1(9, 7, 8), BacarMotor motor2(10, 11, 12)); 
 
@@ -23,6 +23,7 @@ void loop() {
   if ( comm.newMessage() == true ) {
     control.Move (comm.vRead(), float(comm.xRead()) / 1000);
   }
-
+  
+  comm.sendMessage(0, 0, ProxiSens.Read_Distance(), 0) ;
 
 }
