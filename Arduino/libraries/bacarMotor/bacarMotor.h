@@ -5,9 +5,9 @@
 
 class BacarMotor {
 private:
-  const int pwm_pin;         // pin on which to apply the PWM signal
-  const int in1_pin;         // pin that dictates direction
-  const int in2_pin;         // pin that dictates direction
+  int pwm_pin;         // pin on which to apply the PWM signal
+  int in1_pin;         // pin that dictates direction
+  int in2_pin;         // pin that dictates direction
 
   const int PWM_MAX = 255;
   const int PWM_MIN = PWM_MAX / 5; //if actuated, actuate at least for 20 %

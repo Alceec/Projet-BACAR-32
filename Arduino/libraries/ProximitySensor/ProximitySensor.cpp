@@ -7,5 +7,5 @@ ProximitySensor::ProximitySensor(int Pin_Value) {
 float ProximitySensor::Read_Distance()
 {
     int val = analogRead(_pin_value); 
-    return sqrt((float) (CONSTANT / (MAX_VALUE - val))) 
+    return sqrt((float) (CONSTANT / (MAX_VALUE - val))) ;
 }

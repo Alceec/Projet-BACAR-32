@@ -3,15 +3,12 @@
 #include <bacarMotor.h>
 #include <ProximitySensor.h> 
 
-ProximitySensor ProxiSens = ProximitySensor(20) 
+ProximitySensor ProxiSens = ProximitySensor(20) ;
 BacarComm comm;
-Controler control = Controler(BacarMotor motor1(9, 7, 8), BacarMotor motor2(10, 11, 12)); 
+Controler control = Controler(BacarMotor(9, 7, 8), BacarMotor(10, 11, 12)); 
 
 void setup() {
   comm.begin();
-  motor1.begin();
-  motor2.begin();
-  main.Print();
 
 }
 

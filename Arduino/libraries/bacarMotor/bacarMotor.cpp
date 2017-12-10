@@ -43,5 +43,4 @@ void BacarMotor::actuate(float pwm_value) {
     digitalWrite(in2_pin, HIGH);
   }
 }
-
-//virtual BacarMotor::~BacarMotorController () {}
+\
