@@ -9,6 +9,7 @@ Controler::Controler(BacarMotor mot1 , BacarMotor mot2 ) {
 }
 
 void Controler::Move( float Angular_Speed, float radius_from_center ) {  // positive to turn right
+    /* Angular_Speed (rad/s) , radius_from_center (m) */
     if ( radius_from_center != INF ) {
 
         float radius1 = (_CAR_WIDTH / 2 ) + radius_from_center ; 

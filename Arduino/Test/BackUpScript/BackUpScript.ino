@@ -68,8 +68,8 @@ void loop(){
 val = digitalRead (buttonpin) ;// Le sensor = la valeur de l'etat exterieur
 if (val == HIGH)
 {
-  move(1, 0, 1); //motor 1, full speed, left
-  move(2, 0, 1); //motor 2, full speed, left
+  move(1, 0, 1); //motor 1, zero speed, left
+  move(2, 0, 1); //motor 2, zero speed, left
 }
 else {
   move(1, 255, 1); //motor 1, full speed, left

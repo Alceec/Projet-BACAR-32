@@ -3,13 +3,13 @@
 
 #include <Arduino.h> 
 
-#define MAX_VALUE 1028
+#define MAX_VALUE 1023
 #define CONSTANT 1
 
 class ProximitySensor {
     public : 
         ProximitySensor(int Pin_Value) ; 
-        float Read_Distance() ; 
+        bool Is_There_Object() ; 
     private : 
         int _pin_value ; 
 };

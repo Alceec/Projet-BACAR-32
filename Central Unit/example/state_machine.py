@@ -84,7 +84,8 @@ def SubSpiralRoutine ( speed, convergence ) :
         yield InnerState.IN
     yield InnerState.DONE
 
-def Turn( angle, radius, speed  ) :     # radius : cm  , speed : deg/s
+def Turn( angle, radius, speed  ) :
+    '''radius (cm)  , speed  (deg/s) , angle  (deg)'''     
     speed = Rad(speed) 
     angle = Rad(angle) 
     Car.send(radius, 0, 0, speed) 
@@ -172,8 +173,7 @@ def loop():
 
             pass
         elif event.type == Event.CAR:
-        ''' go check the scripts on arduino to know where these values come from'''
-            if event.val['u'] <= 20 '''cm''': 
+            if event.val['y'] == 1 : 
                 Stop_Car()
             pass
     else : 
