@@ -3,9 +3,11 @@
 #include <bacarMotor.h>
 #include <ProximitySensor.h> 
 
-ProximitySensor ProxiSens = ProximitySensor(20) ;
+ProximitySensor ProxiSens = ProximitySensor(20, 1) ;
 BacarComm comm;
-Controler control = Controler(BacarMotor(10, 11, 12), BacarMotor(9, 7, 8)); 
+BacarMotor mot1 (10, 11, 12); 
+BacarMotor mot2 (9, 7, 8)
+Controler control = Controler(mot1, mot2s); 
 
 void setup() {
   comm.begin();
@@ -20,6 +22,9 @@ void loop() {
     control.Move (comm.vRead(), float(comm.xRead()) * 1000);
   }
   
-  comm.sendMessage(0, ProxiSens.Is_There_Object(), 0, 0) ;
+  if (ProxiSens.Is_There_Object() ) {
+    comm.sendMessage(0, 1, 0, 0);
+    control.Move(0, 0); 
+  }
 
 }

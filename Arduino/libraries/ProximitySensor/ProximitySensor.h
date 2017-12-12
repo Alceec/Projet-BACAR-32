@@ -8,10 +8,11 @@
 
 class ProximitySensor {
     public : 
-        ProximitySensor(int Pin_Value) ; 
+        ProximitySensor(int Pin_Value, int Enable_Pin) ; 
         bool Is_There_Object() ; 
     private : 
         int _pin_value ; 
+		int _enable_pin; 
 };
 
 #endif

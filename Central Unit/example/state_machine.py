@@ -71,7 +71,7 @@ def Rotate(angle) :                                   #deg
 
 def GoForth( time_interval, speed ) :     #Speed : m/s 
     timer = StartTimer( time_interval ) 
-    Car.send( Direction.forth , 0, 0, speed )
+    Car.send( Direction.forth , Direction.forht, 0, speed )
     while ( next(timer) != InnerState.DONE ) : 
         yield InnerState.IN
     yield InnerState.DONE
@@ -88,7 +88,7 @@ def Turn( angle, radius, speed  ) :
     '''radius (cm)  , speed  (deg/s) , angle  (deg)'''     
     speed = Rad(speed) 
     angle = Rad(angle) 
-    Car.send(radius, 0, 0, speed) 
+    Car.send(radius, radius, 0, speed) 
     timer = StartTimer(angle / speed ) 
     while (next(timer) == InnerState.IN) : 
         yield InnerState.IN
@@ -174,7 +174,7 @@ def loop():
             pass
         elif event.type == Event.CAR:
             if event.val['y'] == 1 : 
-                Stop_Car()
+                logging.info("seeing a wall") 
             pass
     else : 
         if state == CarState.MOVING : 
