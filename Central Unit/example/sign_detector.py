@@ -56,8 +56,6 @@ def detect(bb, sign):
         mask_r2 = cv2.inRange(hsv, lower_color_r2, upper_color_r2)
         mask_r = mask_r1 + mask_r2
         #cv2.imshow("mask_r", mask_r)
-        number_of_columns = np.shape(hsv)[1]
-        number_of_rows = np.shape(hsv)[0]
         image_size = np.size(mask_r)
         #plt.subplot(231)
         #plt.imshow(mask_r)
@@ -74,10 +72,8 @@ def detect(bb, sign):
             bord_droit = t_r[1].max()
             mask_r = mask_r[bord_haut:bord_bas, bord_gauche:bord_droit]"""
             #cv2.imshow("mask_r*", mask_r)
-            number_of_columns = np.shape(mask_r)[1]
-            number_of_rows = np.shape(mask_r)[0]
-            percent_stop_v = cv2.countNonZero(mask_r[:, int(number_of_columns*0.5)])/number_of_rows*100
-            percent_stop_h = cv2.countNonZero(mask_r[int(number_of_rows*0.5), :])/number_of_columns*100
+            percent_stop_v = cv2.countNonZero(mask_r[:, int(w*0.5)])/h*100
+            percent_stop_h = cv2.countNonZero(mask_r[int(h*0.5), :])/w*100
             #print("V :",percent_stop_v,'%',"\nH :", percent_stop_h,'%')
             """
             plt.subplot(233)
@@ -89,7 +85,7 @@ def detect(bb, sign):
             cv2.destroyAllWindows()
             """
             
-            if percent_stop_v > 45 and percent_stop_h < 15:
+            if percent_stop_v > 3*percent_stop_h and percent_stop_v > 40:
                 res = "STOP"
                 if x0 > 240 or y0 > 70:
                     res = "STOP!"
@@ -115,37 +111,38 @@ def detect(bb, sign):
                 bord_bas = t_b[0].max()
                 bord_gauche = t_b[1].min()
                 bord_droit = t_b[1].max()
-                mask_b = mask_b[bord_haut:bord_bas, bord_gauche:bord_droit]"""
-                mask_b_arrow = mask_b[int(number_of_rows*(0.4)):int(number_of_rows*(0.70)),:]
+                mask_b = mask_b[bord_haut:bord_bas, bord_gauche:bord_droit]    """
+                mask_b_arrow = mask_b[int(h*(0.4)):int(h*(0.70)),:]
                 cv2.imshow("mask_b*", mask_b_arrow)
                 lower_color_w = np.array([0, 0, 100])
                 upper_color_w = np.array([179, 90, 255])
                 mask_w = cv2.inRange(hsv, lower_color_w, upper_color_w)
-                mask_w_arrow = mask_w[int(number_of_rows*(0.4)):int(number_of_rows*(0.70)),:]
+                mask_w_arrow = mask_w[int(h*(0.4)):int(h*(0.70)),:]
                 cv2.imshow("mask_w", mask_w)#_arrow)
-                mask_w_arrow = cv2.blur(mask_w_arrow, (int(number_of_columns/5),int(number_of_columns/5)))
+                cv2.imshow("depart", mask_w_arrow)                
+                mask_w_arrow = cv2.blur(mask_w_arrow, (int(w/5),int(w/5)))
+                cv2.imshow("adoucie", mask_w_arrow)
                 _, mask_w_arrow = cv2.threshold(mask_w_arrow, 180, 255, cv2.THRESH_BINARY)
-                
+                cv2.imshow("final", mask_w_arrow)                
+
                 if cv2.countNonZero(mask_w_arrow) != 0:
                     #cv2.imshow("mask_w*", mask_w_arrow)
                     _, center_of_massxb = ndimage.measurements.center_of_mass(mask_b)
                     _, center_of_massxw = ndimage.measurements.center_of_mass(mask_w_arrow)
                     
-                    if center_of_massxw < number_of_columns/2 and center_of_massxb > number_of_columns/2:
-                        test2 = "LEFT"           #res = "LEFT"
-                    
-                    elif center_of_massxw > number_of_columns/2 and center_of_massxb < number_of_columns/2:
-                        test2 = "RIGHT"          #res = "RIGHT"
-                    else:
-                        test2 = None
-                    number_of_columns = np.shape(mask_b)[1]
-                    number_of_rows = np.shape(mask_b)[0]
-                    percent_blue_v = cv2.countNonZero(mask_b[:, int(number_of_columns*(0.4))])/number_of_rows*100
-                    percent_blue_h = cv2.countNonZero(mask_b[int(number_of_rows*(0.525)), :])/number_of_columns*100
-                    #print("V :",percent_blue_v,'%',"\nH :", percent_blue_h,'%')
-                    
+                    if center_of_massxw < w/2 and center_of_massxw < center_of_massxb:
+                        res = "LEFT"           #res = "LEFT"
+  
+                    elif center_of_massxw > w/2 and center_of_massxw > center_of_massxb:
+                        res = "RIGHT"          #res = "RIGHT"
 
-                
+                    else:
+                        res = None
+
+                    '''
+                    percent_blue_v = cv2.countNonZero(mask_b[:, int(w*(0.4))])/h*100
+                    percent_blue_h = cv2.countNonZero(mask_b[int(h*(0.525)), :])/w*100
+                    #print("V :",percent_blue_v,'%',"\nH :", percent_blue_h,'%')
                     
                     if percent_blue_v > 35 and percent_blue_h < 22:
                         test1 = "LEFT"
@@ -160,7 +157,7 @@ def detect(bb, sign):
                         res = test2
                     elif test2 == None and test1 != None:
                         res = test1
-                    
+                    '''
                     #logging.info(test1)
                     #logging.info(percent_blue_v)
             
@@ -176,4 +173,3 @@ def detect(bb, sign):
 
     logging.info(res)
     return {'sign': res, 'x0': x0, 'y0': y0, 'width': w, 'height': h}
-
