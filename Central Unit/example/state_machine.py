@@ -71,7 +71,7 @@ def Rotate(angle) :                                   #deg
 
 def GoForth( time_interval, speed ) :     #Speed : m/s 
     timer = StartTimer( time_interval ) 
-    Car.send( Direction.forth , Direction.forht, 0, speed )
+    Car.send( Direction.forth , Direction.forth, 0, speed )
     while ( next(timer) != InnerState.DONE ) : 
         yield InnerState.IN
     yield InnerState.DONE

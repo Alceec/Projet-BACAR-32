@@ -27,6 +27,9 @@ float BacarMotor::getPwmValue() {
 
 void BacarMotor::actuate(float pwm_value) {
   // First we saturate the input value in the admissible range (-1 -> 1)
+  Serial.print("Actuate being called, replace with value : ");
+  Serial.print(pwm_value); 
+  Serial.print("\n");
   if (pwm_value < -1) {
     pwm_value = -1;
   } else if (pwm_value > 1) {
@@ -43,4 +46,4 @@ void BacarMotor::actuate(float pwm_value) {
     digitalWrite(in2_pin, HIGH);
   }
 }
-\
+

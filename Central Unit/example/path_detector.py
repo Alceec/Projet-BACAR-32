@@ -22,33 +22,27 @@ import cv2
 from scipy import ndimage
 import time
 import random
+
 # Log which path detector is being used. This appears in the output. Useful
 # for ensuring that the correct path detector is being used.
 logging.info('Simplistic PathDetector has been initialized')
+
 heading = 0
 count = 0
 temp_cont_r = None
 temp_cont_l = None
+temp_mid = None
 choice = None
 run = None
-contact_l = None
-contact_r = None
 
 def detect(mask):
     global count
     global heading
     global temp_cont_l
     global temp_cont_r
+    global temp_mid
     global choice
-    global run
-    global contact_l
-    global contact_r
     #logging.data('1')
-    '''imgc = np.zeros((260,210,3))
-    imgc[:,:,0], imgc[:,:,1], imgc[:,:,2] = mask, mask, mask
-    _,cnt,_=cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    cv2.drawContours(imgc, cnt, 0, (0,0,255), 2)
-    cv2.imshow("Route", imgc)'''
     
     """This function receives a binarized image in its `mask` argument
     (`mask` is a h x w  numpy array where h is the height and w the width).
@@ -73,69 +67,59 @@ def detect(mask):
     x0 = int(img_width*.5)  # center of the image
     # row to sample (first row at the top is row zero)
     y0 = int(img_height*.75)
-    #sample = mask[y0, :]
-    #sample = np.size(sample) - np.count_nonzero(sample)
-    #logging.info(sample)
     # assume the car center is at coordinate (img_width/2, img_height)
     car_center = (x0, img_height)
     
     if count == 1:
-        logging.info(101)
         mask = cut_mask(mask, temp_cont_l, temp_cont_r, choice)
-        if choice != 1:
-            test_front = mask[y0-80, contact_l+10: contact_r-10]
-            if cv2.countNonZero(test_front) == 0 or run >= 12:
-                count = 0
-        else:
-            if run >= 11:
-                count = 0
-    
+        test_stop_m = mask[y0-15, temp_mid]
+        test_stop_l = mask[y0-15, temp_cont_l-15]
+        test_stop_r = mask[y0-15, temp_cont_r+15]
+        if test_stop_m == 0 and test_stop_l == 255 and test_stop_r == 255:
+            count = 0
+
     # try to find the road center by sampling the horizontal line passing
     # through (x0,y0) -- find_center is a function defined further below
     road_center, contact_l, contact_r = find_center(mask, x0, y0, heading)
-    #logging.info(contact_r)
-    #logging.info(contact_l)
-    #logging.info(run)
-    run2 = mask[y0-8, contact_l-8: contact_l]
-    run1 = mask[y0-8, contact_r: contact_r+8]
-    run = cv2.countNonZero(run1) + cv2.countNonZero(run2)
-    if run <= 8 and count == 0:
-        #logging.info(0)
-        count = 1
-        choices = []
-        test_front = mask[y0-80, contact_l+15: contact_r-15]
-        test_left = mask[y0-35 : y0-15, contact_l-8]
-        test_right = mask[y0-35 : y0-15, contact_r+8]
-        #logging.info(test_right)
-        #logging.info(np.size(test_right))
-        if cv2.countNonZero(test_front) == 0:
-            logging.info(1)
-            choices += [1]
-        if cv2.countNonZero(test_left) == 0:
-            logging.info(2)
-            choices += [2]
-        if cv2.countNonZero(test_right) == 0:
-            logging.info(3)
-            choices += [3]
-        if choices != [] and 1 != len(choices):
-            choice = random.choice(choices)
-            logging.info(choice)
-            temp_cont_l = contact_l
-            temp_cont_r = contact_r
-        else:
-            count = 0
+    if count == 0:
+        run_l = cv2.countNonZero(mask[y0-12, contact_l-5:contact_l-2])
+        run_r = cv2.countNonZero(mask[y0-12, contact_r+2:contact_r+5])
+        if run_l == 0 or run_r == 0:
+            count = 1
+            choices = []
+            test_front = mask[y0-95, contact_l+15: contact_r-15]
+            test_left = mask[y0-45 : y0-25, contact_l-8]
+            test_right = mask[y0-45 : y0-25, contact_r+8]
+            if cv2.countNonZero(test_front) == 0:
+                choices += [1]
+            if cv2.countNonZero(test_left) == 0:
+                choices += [2]
+            if cv2.countNonZero(test_right) == 0:
+                choices += [3]
+            if choices != [] and 1 != len(choices):
+                choice = random.choice(choices)
+                temp_cont_l = contact_l
+                temp_cont_r = contact_r
+                temp_mid = int((temp_cont_l+temp_cont_r)/2)
+            else:
+                count = 0
   
     # calculate the angle between the vertical line that passes through
     # the car center and the line that connects the car center with the road
     # center -- model_to_heading is a function further defined below
+    
     heading = model_to_heading(road_center, car_center)
+    distance =  ((road_center[0] - \
+    car_center[0])**2 + (road_center[1] - car_center[1])**2)**(1/2)
+    
     # send the calculated information to the state machine
     # NOTE: one may want to extend the analysis and measure, e.g., how
     # reliable the path is (in other words: how long one thinks one could
     # follow it.) If this is measured one may also want to include it in
     # this dictionary so that the state
     # machine can use this.
-    path_dict = {'heading': heading+12.15}
+    
+    path_dict = {'heading': heading+12.15, 'distance': distance}
 
     # uncomment the following line if you want to print the dictionary
     # for debugging purposes
@@ -154,10 +138,11 @@ def detect(mask):
     #if type(contact_r) == float and type(contact_l) == float:
     cv2.line(path_img, (contact_r, 0), (contact_r, img_height), (255, 0, 0))
     cv2.line(path_img, (contact_l, 0), (contact_l, img_height), (255, 0, 0))
-    cv2.line(path_img, (contact_r+5, y0-35), (contact_r+5, y0-15), (0, 0, 255))
-    cv2.line(path_img, (contact_l-5, y0-35), (contact_l-5, y0-15), (0, 0, 255))
-    cv2.line(path_img, (contact_l+15, y0-80), (contact_r-15, y0-80), (0, 0, 255))
-    cv2.line(path_img, (contact_l-8, y0-8), (contact_r+8, y0-8), (200, 100, 255))
+    cv2.line(path_img, (contact_r+5, y0-45), (contact_r+5, y0-25), (0, 0, 255))
+    cv2.line(path_img, (contact_l-5, y0-45), (contact_l-5, y0-25), (0, 0, 255))
+    cv2.line(path_img, (contact_l+15, y0-95), (contact_r-15, y0-95), (0, 0, 255))
+    cv2.line(path_img, (contact_l-8, y0-14), (contact_l-4, y0-14), (219, 0, 115))
+    cv2.line(path_img, (contact_r+4, y0-14), (contact_r+8, y0-14), (219, 0, 115))
     # Draw a small filled dot at the calculated road center, 4 pixels wide,
     # in red
     cv2.circle(path_img, road_center, 4, (0, 0, 255), -1)
@@ -171,7 +156,7 @@ def find_center(mask, x, y, heading):
     """Sample the horizontal line passing through coordinate (x,y) for non-zero
        pixels in mask to determine road center"""
     img_height, img_width = mask.shape
-    sample_width = int(img_width / 2)
+    sample_width = int(img_width/2)
     p0 = np.array([x, y])
     pl = np.array([x-sample_width, y])
     pr = np.array([x+sample_width, y])
@@ -189,7 +174,7 @@ def find_center(mask, x, y, heading):
         # No non-zero pixel was found on the left. This means that we don't
         # see the left hand side of the road on row y0
         # arbitrarily set the road boundary at x = x0 - 30
-        # this parameter value (30) likely needs to be tuned
+        # this param ceter value (30) likely needs to be tuned
         # inutile, impossible avec angle de caméra
         contact_l = p0 + np.array([-30, 0])
     else:
@@ -197,7 +182,7 @@ def find_center(mask, x, y, heading):
         # Interpret the first non-zero pixel as the road boundary
             contact_l = np.array([xl[idx_l[0]], yl[idx_l[0]]])
         else:
-            idx_l = [idx_l[i] for i in range(len(idx_l)) if idx_l[i] > 17] 
+            idx_l = [idx_l[i] for i in range(len(idx_l)) if idx_l[i] > 10] 
             contact_l = np.array([xl[idx_l[0]], yl[idx_l[0]]])
     if idx_r.size == 0:
         contact_r = p0 + np.array([30, 0])
@@ -205,7 +190,7 @@ def find_center(mask, x, y, heading):
         if idx_r[0] != 0 or heading >= 0:
             contact_r = np.array([xr[idx_r[0]], yr[idx_r[0]]])
         else:
-            idx_r = [idx_r[i] for i in range(len(idx_r)) if idx_r[i] > 17]
+            idx_r = [idx_r[i] for i in range(len(idx_r)) if idx_r[i] > 10]
             contact_r = np.array([xr[idx_r[0]], yr[idx_r[0]]])
     # we define the road center to be mid-way contact_l and contact_r
     center = (contact_l + contact_r) / 2
@@ -218,8 +203,8 @@ def model_to_heading(model_xy, car_center_xy):
        `car_center_xy` with `model_xy`.
        A negative angle means that the car should turn clockwise; a positive
        angle that the car should move counter-clockwise."""
-    dx = 1. * model_xy[0] - car_center_xy[0]
-    dy = 1. * model_xy[1] - car_center_xy[1]
+    dx = 1. * model_xy[0]-car_center_xy[0]
+    dy = 1. * model_xy[1]-car_center_xy[1]
 
     heading = -np.arctan2(dx, -dy)*180/np.pi
 
@@ -246,12 +231,11 @@ def profile(mask, p0, p1, num):
     m = np.linspace(p0[1], p1[1], num)
     return [n, m, ndimage.map_coordinates(mask, [m, n], order=0)]
     
-def cut_mask(mask, temp_tact_l, temp_tact_r, integer):
-    if integer == 3:
+def cut_mask(mask, temp_tact_l, temp_tact_r, choice):
+    if choice == 3:
         mask[:, temp_tact_l] = 255
-    if integer == 2:
+    elif choice == 2:
         mask[:, temp_tact_r] = 255
     else:
         mask[:, temp_tact_l], mask[:, temp_tact_r] = 255, 255
     return mask
-    

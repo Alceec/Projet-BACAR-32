@@ -1,7 +1,7 @@
 #include <bacarComm.h>
-#include "Controler.h"
+#include <Controler.h>
 
-using namespace std;
+#define _CAR_WIDTH 0.18
 
 Controler::Controler(BacarMotor mot1 , BacarMotor mot2 ) {
     motor1 = &mot1 ; // LEFT MOTOR
@@ -15,11 +15,11 @@ void Controler::Move( float Angular_Speed, float radius_from_center ) {  // posi
     /* Angular_Speed (rad/s) , radius_from_center (m) */
     if ( radius_from_center != INF ) {
 
-        float radius1 = (_CAR_WIDTH / 2 ) + radius_from_center ; 
+        float radius1 = radius_from_center + (_CAR_WIDTH / 2 ) ; 
 
         float speed_mot1 = (Angular_Speed * radius1) / _SPEED_AT_FULL_CAPACITY ; 
 
-        float radius2 = (_CAR_WIDTH / 2 ) - radius_from_center ; 
+        float radius2 = radius_from_center - (_CAR_WIDTH / 2 )  ; 
 
         float speed_mot2 = (Angular_Speed * radius2) / _SPEED_AT_FULL_CAPACITY ; 
 
@@ -32,7 +32,5 @@ void Controler::Move( float Angular_Speed, float radius_from_center ) {  // posi
         motor2->actuate(speed / 2.0) ;
     }
     
-
-
 
 }
