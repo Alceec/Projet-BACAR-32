@@ -32,6 +32,7 @@ logging.info('State machine Initialize. Ready to rock, sir !')
 state = CarState.IDLE
 MainAction = None 
 SubMovement = None 
+direction = Direction.forth 
 
 
 def Rad( angle ) : 
@@ -133,6 +134,8 @@ def loop():
     global state  # define state to be a global variable
     global SubMovement
     global MainAction
+    global direction 
+
     event = Event.poll()
     if event is not None:        # only if there is some change ( instantiate action ) #me
         if event.type == Event.CMD and event.val == "GO":
@@ -159,7 +162,19 @@ def loop():
             # You received the PATH dictionary emitted by the path detector
             # you can access this dictionary in event.val
             # actuate car coresspondingly, change state if relevant
+            dic_H = event.val
+            Heading_to_take = (0, 0)
+              
+            if direction == Direction.forth : 
+                Heading_to_take = dic_H["forth"] 
+
+            elif direction == Direction.left ; 
+                Heading_to_take = dic_H["left"]
+
+            elif direction == Direction.right : 
+                Heading_to_take = dic_H["right"] 
             pass
+
         elif event.type == Event.SIGN:
             sign = event.val['sign']
             if sign == 'right' : 

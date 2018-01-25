@@ -44,8 +44,6 @@ def Is_True_Corner(point, image) :
     circle = cv.circle(circle, point, 5, (255, 255, 255), 2) 
     circle_mask = cvtImage_to_mask(circle, 250) 
     inter = cv.bitwise_and(image, image, mask = circle_mask)
-    cv.imshow("intersection", inter)  
-    cv.waitKey(0)
     points = cv.goodFeaturesToTrack(inter, 2, 0.01, 5)
     if len(points) == 1 : 
         return True 
@@ -55,8 +53,24 @@ def Is_True_Corner(point, image) :
         raise Exception("Error in true corner detection")
 
 
+def Sort_Heading( heading , Im_width ) : 
+    
+    dic = {"left": (-1, -1), "forth": (-1, -1), "right": (-1, -1) }
 
+    if len(heading) == 1 : 
+        dic["forth"] = heading[0]
+        return dic
+        
+    for h in heading : 
+        x,y = h
+        if x < (Im_width/2) - 20 : 
+            dic["left" ] = h
+        elif x > (Im_width / 2 ) + 20 : 
+            dic["right"] = h 
+        else : 
+            dic["forth"] = h 
 
+    return dic
 
 def detect(mask):
 
@@ -79,11 +93,11 @@ def detect(mask):
             as the mask) that visualizes the found path. Used for
             visualization in the viewer only.
     """
-    hc, wc, cc = mask.shape
+    hc, wc = mask.shape
 
     #create a mask of a circle 
-    black_img = np.zeros([hc, wc, cc], np.uint8 )  
-    circle_img = cv.circle(black_img, (int(wc/2),hc) , 200, (255, 255, 255), 2) 
+    black_img = np.zeros([hc, wc, 3], np.uint8 )  
+    circle_img = cv.circle(black_img, (int(wc/2), int(hc/2) + 40)  , 50, (255, 255, 255), 2) 
     circle_mask = cvtImage_to_mask(circle_img, 10) 
 
     #road to white and border to black 
@@ -95,21 +109,23 @@ def detect(mask):
 
     #find intersection by using corner detection
     corners = cv.goodFeaturesToTrack(Intersection, 6, 0.01, 10) 
-    corners = np.int0(corners) 
 
+
+
+    
     #check all points and remove false positive 
     true_point = []
     for corner in corners : 
         x, y = corner.ravel()
-        print("points : {}".format((x, y)))
-        returned_Img = cv.circle(mask, (x,y), 3 , (255, 0, 0 ), -1 ) 
         if Is_True_Corner((x, y), Intersection ) : 
             true_point.append((x, y))
-    
+ 
     #get heading from intersections 
-    heading = Get_heading(true_point) 
+    heading = Get_heading(true_point)
+    heading_dic = Sort_Heading( heading )  
+    #returned_Img = cv.bitwise_or( circle_mask, circle_mask, mask = mask)
+    returned_Img = cv.cvtColor( circle_mask, cv.COLOR_GRAY2RGB ) 
 
-
-
-    return ({"Headings" : heading} , returned_Img )
+	
+    return (heading_dic, returned_Img )
 
