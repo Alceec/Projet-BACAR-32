@@ -1,34 +1,40 @@
-
-#testing
 import logging
 import time
+import Car_Agent
 from event import Event
 from car import Car
 from numpy import pi
+from random import randint
 
 class InnerState : 
     IN = 1
     DONE = 0
-
 
 class CarState : 
     # constants for the different states in which we can be operating
     IDLE = 1
     STOPPED = 2
     MOVING = 3 
+    AUTONOMOUS = 4 
     # You can add other states here
+
 class Direction : 
     left = -1 
     right = 1 
     forth = 1000 * 1000
 
 
-# Setup up the state machine. The following code is called when the state
+# Set up the state machine. The following code is called when the state
 # machine is loaded for the first time.
 logging.info('State machine Initialize. Ready to rock, sir !')
 
-# The next variable is a global variable used to store the state between
-# successive calls to loop()
+#___________ Q-AGENT _____________
+Schumacher = Car_Agent.BabyDriver([8, 16, 32, 16, 16], 1, 0.1, 0.009)
+ReplayBuffer = Car_Agent.Replay_Memory()
+total_Step = 0
+#_________________________________
+
+
 state = CarState.IDLE
 MainAction = None 
 SubMovement = None 
@@ -130,16 +136,28 @@ def TurnToSide(side) :
 ##################################################################################
 
 def loop():
+    
+    #Constants 
+    Exploration_Step = 1000
+    Y = 0.99
 
+    #Global var defined outside loop 
     global state  # define state to be a global variable
     global SubMovement
     global MainAction
     global direction 
+    global Schumacher
+    global ReplayBuffer
+    global total_Step 
+
 
     event = Event.poll()
     if event is not None:        # only if there is some change ( instantiate action ) #me
+
+        #+++++++++++++++++++++++++++++++++++++++++++++++++++
         if event.type == Event.CMD and event.val == "GO":
-            logging.info( " Up and running, boss !" ) 
+            logging.info( " Up and running, boss !" )
+            state =  CarState.AUTONOMOUS
         elif event.type == Event.CMD and event.val == "SPIRAL" : 
             MainAction = Spiral(10, 10) 
             state = CarState.MOVING
@@ -157,11 +175,8 @@ def loop():
         elif event.type == Event.CMD and event.val == "STOP":
             Stop_Car()
 
-
+        #++++++++++++++++++++++++++++++++++++++++++++++++
         elif event.type == Event.PATH:
-            # You received the PATH dictionary emitted by the path detector
-            # you can access this dictionary in event.val
-            # actuate car coresspondingly, change state if relevant
             dic_H = event.val
             Heading_to_take = (0, 0)
               
@@ -173,8 +188,33 @@ def loop():
 
             elif direction == Direction.right : 
                 Heading_to_take = dic_H["right"] 
-            pass
+            #######################################
+            #######################################
+            #######################################
+            #######################################
+            frame_data, Off_road = event.val
+            if(total_Step < Exploration_Step ): 
+                action = randint(0, 15) 
+            else
+                action = Schumacher.Move(frame_data, True)
+            reward = 1 
+            if Off_road : 
+                reward = -10  
+            if ReplayBuffer.cur_replay == [] : 
+                ReplayBuffer.cur_replay.append(frame_data) 
+                ReplayBuffer.cur_replay.append(action) 
+                ReplayBuffer.cur_replay.append(reward) 
+            else : 
+                ReplayBuffer.cur_replay.append(frame_data) 
+                ReplayBuffer.add(ReplayBuffer.cur_replay) 
+                ReplayBuffer.cur_replay = [frame_data, action, reward]
 
+            if total_Step >= Exploration_Step : 
+                Schumacher.Train(ReplayBuffer.Sample(250), Y) 
+
+            total_Step += 1 
+            pass
+        #++++++++++++++++++++++++++++++++++++++++++++++++++
         elif event.type == Event.SIGN:
             sign = event.val['sign']
             if sign == 'right' : 
@@ -185,15 +225,18 @@ def loop():
                 state = CarState.MOVING
             elif sign == 'stop' : 
                 Stop_Car()     
-
             pass
+        #++++++++++++++++++++++++++++++++++++++++++++++++++
         elif event.type == Event.CAR:
             if event.val['y'] == 1 : 
                 logging.info("seeing a wall") 
             pass
     else : 
+        #++++++++++++++++++++++++++++++++++++++++++++++++++
         if state == CarState.MOVING : 
             if SubMovement == None or next( SubMovement ) == InnerState.DONE:        # next has to come after !!!!!!! 
                 SubMovement = next(MainAction) 
                 logging.info ( "Calling next subroutine " ) 
-              
+        #+++++++++++++++++++++++++++++++++++++++++++++++++++     
+       
+            
