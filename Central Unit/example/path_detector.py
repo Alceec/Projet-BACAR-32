@@ -39,16 +39,18 @@ def Get_heading(point):
     return heading 
 
 def Is_True_Corner(point, image) : 
-    w, h = image.shape
+    w, h = image.shape 
     circle = np.zeros([w, h, 3], np.uint8)
     circle = cv.circle(circle, point, 5, (255, 255, 255), 2) 
     circle_mask = cvtImage_to_mask(circle, 250) 
+    #cv.imwrite("/home/student/Desktop/test.png", circle_mask + image)
     inter = cv.bitwise_and(image, image, mask = circle_mask)
     points = cv.goodFeaturesToTrack(inter, 2, 0.01, 5)
-    if len(points) == 1 : 
+
+    if not isinstance(points, list) or len(points) == 2 : # if intersection to small
+    	return False
+    elif len(points) == 1 : 
         return True 
-    if len(points) == 2 : 
-        return False 
     else : 
         raise Exception("Error in true corner detection")
 
@@ -88,8 +90,18 @@ def Create_Line_Mask( point1, point2, shape) :
     return cvtImage_to_mask(line, 250) 
     
 def Distance(pt1, pt2) : 
-    return np.sqrt((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2 )
+    return np.sqrt(((pt1[0] - pt2[0])**2) + ((pt1[1] - pt2[1])**2 ))
 
+
+def Draw_Points(points , shape) : 
+
+	b_img = np.zeros((shape[0],shape[1], 3) , dtype= np.uint8) 
+
+	for p in points : 
+		b_img = cv.circle( b_img, p, 5, (255, 0, 0), -1)
+
+	cv.imshow("points", b_img) 
+	cv.waitKey(0) 
 
 class Lines_System : 
     def __init__( self, origin, view_angle, max_height, max_width, Amount_of_Line ) : 
@@ -114,14 +126,12 @@ class Lines_System :
             Unit_vec = Angle_to_Cartesian( current_angle)
             x_edge = (Unit_vec[0] / Unit_vec[1]) * self.max_height
             m = Create_Line_Mask(origin, (int(self.max_width + x_edge), 0), [int(self.max_height), int(self.max_width * 2), 3])
-            cv.imshow("m", m) 
-            cv.waitKey(0)
             self.Mask_ls.append(m)
 
-    def Sort_Points(Point_list) : 
+    def Sort_Points(self, Point_list) : 
         temp_l = [] 
         for p in Point_list : 
-            temp_l.append(p.ravel) 
+            temp_l.append(tuple(p.ravel())) 
         return sorted(temp_l) 
 
     def Get_Distance(self, path_mask):
@@ -130,13 +140,15 @@ class Lines_System :
         return a list of the different distances between the car and the borders of the road
         """
         Dist_ls = [] 
-        for l_mask in self.Mask_ls : 
+        for l_mask in self.Mask_ls :
             Intersection_mask = cv.bitwise_and(path_mask, path_mask, mask= l_mask) 
-            points = cv.goodFeaturesToTrack(Intersection, 2, 0.01, 3)
-            points = np.int0(points)  
+            points = cv.goodFeaturesToTrack(Intersection_mask, 2, 0.01, 3)
+            points = np.int0(points) 
+
             #make sure it's taking the first intersection with the border of the road and not 
             #another road on the other side 
-            points = Sort_Points(points) 
+            points = self.Sort_Points(points) 
+            #Draw_Points(points, path_mask.shape) 
             Dist_ls.append(Distance(points[0], points[1]))
 
         return Dist_ls
@@ -214,14 +226,15 @@ def detect(mask):
     heading_dic = Sort_Heading( heading, wc)  
 
     #get the distance from the border 
-    Dist_ls = LS.Get_Distance(Inverted_mask)
+    Dist_ls = LS.Get_Distance(Inverted_mask[:, : wc - (wc % 2) ] ) 
     heading_dic["distances"] = Dist_ls
 
     #prepare the image to show on the screen 
     Line_mask = LS.Get_Full_Mask()
-    returned_Img = cv.cvtColor( circle_mask + Line_mask, cv.COLOR_GRAY2RGB ) 
-
-    heading_dic["off_road"] = Off_Road((100, 200 ), mask)
+    tmp = np.zeros((hc, wc), dtype = np.uint8)
+    tmp[:, : -1 ] = Line_mask 
+    returned_Img = cv.cvtColor( circle_mask + tmp, cv.COLOR_GRAY2RGB ) 
+    heading_dic["off_road"] = Off_Road(((hc//2) + 40  , wc//2 ), mask)
 
     return (heading_dic, returned_Img )
 

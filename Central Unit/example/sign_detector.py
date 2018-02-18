@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 # for ensuring that the correct sign detector is being used.
 logging.info('Simplistic SignDetector has been initialized')
 
-def detect(sign):
+def detect(data, sign):
     """This method receives:
     - sign: a color image (numpy array of shape (h,w,3))
     - bb which is the bounding box of the sign in the original camera view
@@ -38,9 +38,9 @@ def detect(sign):
     This simplistic detector always returns "STOP", copies the bounding box
     to the dictionary."""
 
-    sign = cv2.imread(sign)
-    x0, y0 = 250, 80
-    h, w,_ = sign.shape
+ 
+    x0, y0 = data[0:2]
+    w, h = data[2:4]
     res = None
     
     if y0 > 60 and y0+h < 120 and x0 > 195 and x0+w <= 310:      

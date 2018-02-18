@@ -1,0 +1,491 @@
+"""
+MAIN simulator program
+
+- create ARENA
+- insert CAR
+- simulate CAMERA
+- simulate LIMITS
+
+listen to MQTT messages
+produce MQTT messages
+
+"""
+__author__ = 'olivier'
+
+import numpy as np
+
+from datetime import datetime
+from time import time,sleep
+from numpy.linalg import norm
+import cv2
+import json
+import os
+
+import paho.mqtt.client as mqtt
+import logging
+import argparse
+import random
+
+from os import sys, path
+
+# add parent directory of current script to search path
+sys.path.append(path.dirname(path.abspath(__file__))+'/..')
+
+from tools.param_tools import read_param,save_param
+from tools.compression_tools import bool_to_payload,ts_mask_to_payload
+from tools.compression_tools import ts_bb_signarray_to_payload
+from tools.log_tools import create_logger
+from mqtt_config import *
+
+import json
+
+class Arena(object):
+    def __init__(self, arena_json):
+        # read arena json
+        self.arena = json.load(open(arena_json))
+        [head,tail] = path.split(arena_json)
+
+        image_file = path.join(head,self.arena['arena_image'])
+        if not path.exists(image_file):
+            logging.error("Arena does not exist: %s" % path.abspath(image_file))
+            sys.exit(1)
+
+        self.image_filename = image_file
+        ima = cv2.imread(image_file)
+
+        if ima.ndim ==3:
+            self.bitmap = ima.copy()
+        else:
+            self.bitmap = ima.copy()[:, :, np.newaxis]
+
+        #
+        # self.bitmap = np.zeros((ima.shape[0],ima.shape[1],3),dtype=np.uint8)
+        # self.bitmap[ima[:,:,0]>0,:] = 255
+        # self.bitmap[ima[:,:,0]==0,:] = 128
+
+        self.size_x,self.size_y,_ =self.bitmap.shape
+        self.original = self.bitmap.copy()
+
+
+        # create display window
+        cv2.namedWindow('arena')#,cv2.WINDOW_NORMAL)
+        cv2.moveWindow('arena', 10,10)
+
+    def reset_bitmap(self):
+        self.bitmap = self.original.copy()
+        # display signs
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        for s in self.arena["STOP"]:
+            cv2.putText(self.bitmap,'S',tuple(s[:2]), font, .5,(0,0,255),2)
+        for s in self.arena["LEFT"]:
+            cv2.putText(self.bitmap,'L',tuple(s[:2]), font, .5,(255,0,0),2)
+        for s in self.arena["RIGHT"]:
+            cv2.putText(self.bitmap,'R',tuple(s[:2]), font, .5,(255,0,0),2)
+
+    def show(self):
+        cv2.imshow('arena',self.bitmap)
+
+    def crop (self,xy):
+        x0 = int(min(xy[:,0]))
+        x1 = int(max(xy[:,0]))
+        y0 = int(min(xy[:,1]))
+        y1 = int(max(xy[:,1]))
+        ix0 = min(max(0,x0),self.size_x-1)
+        ix1 = min(max(0,x1),self.size_x-1)
+        iy0 = min(max(0,y0),self.size_y-1)
+        iy1 = min(max(0,y1),self.size_y-1)
+
+        res = np.zeros((x1-x0,y1-y0),dtype=np.uint8)
+        ima = self.bitmap[ix0:ix1,iy0:iy1]
+        return ima
+
+class Camera(object):
+    def __init__(self,x0,y0,z0,v_angle=np.pi/5,h_angle=np.pi/4,v_dir=np.pi/3.75,h_dir=0,
+                      warp_size=(200,200)):
+        self.x0 = x0
+        self.y0 = y0
+        self.z0 = z0
+        self.v_angle = v_angle
+        self.h_angle = h_angle
+        self.v_dir = v_dir
+        self.h_dir = h_dir
+        self.warp_size = warp_size
+
+    def xy0(self,dir_x,dir_y,dir_z):
+        d = np.array((dir_x,dir_y,dir_z))
+        d = d/norm(d)
+        a = - self.z0/d[2]
+        x = self.x0 + a*d[0]
+        y = self.y0 + a*d[1]
+        return (x,y)
+
+    def frustum(self):
+        # returns 4 corners, in the xy plane of the camera frustum
+        # optical axis
+        (x,y) = self.xy0(np.cos(self.h_dir),np.sin(self.h_dir),-np.sin(self.v_dir))
+        xy = np.zeros((6,2))
+        xy[0,:] = self.xy0(np.cos(self.h_dir),np.sin(self.h_dir)+np.sin(self.h_angle),
+                             -np.sin(self.v_dir)+np.sin(self.v_angle))
+        xy[1,:] = self.xy0(np.cos(self.h_dir),np.sin(self.h_dir)-np.sin(self.h_angle),
+                             -np.sin(self.v_dir)+np.sin(self.v_angle))
+        xy[2,:] = self.xy0(np.cos(self.h_dir),np.sin(self.h_dir)+np.sin(self.h_angle),
+                             -np.sin(self.v_dir)-np.sin(self.v_angle))
+        xy[3,:] = self.xy0(np.cos(self.h_dir),np.sin(self.h_dir)-np.sin(self.h_angle),
+                             -np.sin(self.v_dir)-np.sin(self.v_angle))
+        xy[4,:] = (self.x0,xy[0,1])
+        xy[5,:] = (self.x0,xy[1,1])
+        return np.array((x,y)),xy
+
+    def is_in_frustum(self,x,y):
+        # return True if (x,y) is seen by the camera
+        sx = x-self.x0
+        sy = y-self.y0
+
+
+        print(x,y)
+        return False
+
+class Car(object):
+    def __init__(self,x0,y0,a0,e=30,L=50,wheel_r=10,wheel_l=10):
+        self.pos = np.array((x0,y0)) # current absolute position
+        self.angle = a0 # current absolute heading
+        self.rel_angle = 0 # relative angle
+        self.speed = 0
+        self.e = e # distance between wheels
+        self.L = L # car length
+        self.wheel_r = wheel_r # wheels radii
+        self.wheel_l = wheel_l
+        self.theta_r0 = 0#-np.pi/16 # angular speed for each wheel
+        self.theta_l0 = 0#-np.pi/16
+        self.theta_r = 0 # angular speed for each wheel
+        self.theta_l = 0
+        self.t0 = 0 # initial time
+        self.rec = []
+
+        self.camera = Camera(40,10,30,h_dir=np.pi)
+        self.iter = 0
+
+    def set_arena(self,arena):
+        self.arena = arena
+
+    def draw(self):
+        self.element = []
+
+        self.arena.reset_bitmap()
+
+        # opencv transform
+        #M = cv2.getRotationMatrix2D((self.pos[0],self.pos[1]),-self.angle*180./np.pi,1)
+        # M = cv2.getRotationMatrix2D((0,0),-self.angle*180./np.pi,1)
+        # T = np.array(((1,0,self.pos[0]),(0,1,self.pos[1])))
+        a = self.angle#*180./np.pi
+        R = np.array([[np.cos(a),-np.sin(a),0],
+                      [np.sin(a),np.cos(a),0],
+                      [0,0,1]])
+        T = np.array([[1,0,self.pos[0]],
+                      [0,1,self.pos[1]],
+                      [0,0,1]])
+        M = np.dot(T,R)
+
+        def transform(xy,M):
+            tmp = np.asarray(xy)
+            tmp = np.hstack((tmp,np.ones((tmp.shape[0],1))))
+            return np.dot(M,tmp.T).T[:,:2]
+
+        def cv_draw_poly(bitmap,xy,M,color=(0,0,0),closed=True):
+            pxy = transform(xy,M)
+            cv2.polylines(bitmap,[np.int32(pxy)],closed,color)
+
+        def cv_draw_rect(bitmap,p,w,h,M,color=(0,0,0)):
+            xy = [(p[0]-w,p[1]-h),
+                 (p[0]-w,p[1]+h),
+                 (p[0]+w,p[1]+h),
+                 (p[0]+w,p[1]-h)]
+            cv_draw_poly(bitmap,xy,M,color)
+
+        def is_in_poly(xy,x,y):
+            # return True is (x,y) is included in polygon xy
+            s,r = inside_quad(xy, (x,y))
+            return s
+
+        def same_sign(arr): return np.all(arr > 0) if arr[0] > 0 else np.all(arr < 0)
+
+        def inside_quad(pts, pt):
+            a =  pts - pt
+            d = np.zeros((4,2))
+            d[0,:] = pts[1,:]-pts[0,:]
+            d[1,:] = pts[2,:]-pts[1,:]
+            d[2,:] = pts[3,:]-pts[2,:]
+            d[3,:] = pts[0,:]-pts[3,:]
+            res = np.cross(a,d)
+            return same_sign(res), res
+
+        def angle_diff(facingAngle,angleOfTarget):
+            anglediff = (facingAngle - angleOfTarget + np.pi) % (2*np.pi) - np.pi
+            return  anglediff
+
+        def send_a_sign(sign):
+            s_path = '../bin/cropped_signs'
+            p = path.join(s_path,sign)
+
+            if random.random() > .5: #send image from time to time...
+                f = random.choice(os.listdir(p))
+                cropped_sign = cv2.imread(os.path.join(p,f))
+                m,n,_ = cropped_sign.shape
+                ts = time()
+                bb = [100,100,n,m]
+                #logging.info("Sending sign with bb = %s" % (str(bb)))
+                payload = ts_bb_signarray_to_payload(ts, bb, cropped_sign)
+                client.publish(MSG_SERVER_SIGN_ARRAY, payload)
+
+        #car
+        cv_draw_rect(self.arena.bitmap,(0,0),2,2,M)
+        cv_draw_rect(self.arena.bitmap,(self.L/2,0),self.L/2,self.e/2,M,color=(255,50,50))
+        cv_draw_rect(self.arena.bitmap,(0,self.e/2+2),self.wheel_r*2,2,M)
+        cv_draw_rect(self.arena.bitmap,(0,-self.e/2-2),self.wheel_l*2,2,M)
+        # camera
+        cv_draw_rect(self.arena.bitmap,(self.camera.x0-1,self.camera.y0-1),2,2,M)
+        # draw frustum
+        xy_c,xy_f = self.camera.frustum()
+        cv_draw_rect(self.arena.bitmap,(xy_c[0]-1,xy_c[1]-1),2,2,M)
+        cv_draw_poly(self.arena.bitmap,xy_f[[0,1,3,2],:],M,color=(0,0,255))
+        cv_draw_poly(self.arena.bitmap,xy_f[[0,1,5,4],:],M,color=(0,0,200))
+        if self.rec:
+            xy = np.asarray(self.rec)
+            cv_draw_poly(self.arena.bitmap,xy,np.eye(3,3),closed=False,color=(50,50,50))
+
+        # get coordinates transformed of the frustum
+        XY_f = transform(xy_f,M)
+
+        scale = .7
+
+        src = XY_f[[0,1,5,4],:].astype(np.float32)
+        dst = scale * (xy_f[[0,1,5,4],:].astype(np.float32) - np.asarray([min(xy_f[[0,1,5,4],0]),min(xy_f[[0,1,5,4],1])],dtype=np.float32))
+
+        M = cv2.getPerspectiveTransform(src,dst)
+
+        # frustum trace
+        p = xy_f[:,:].astype(np.float32) - np.asarray([min(xy_f[[0,1,5,4],0]),min(xy_f[[0,1,5,4],1])],dtype=np.float32)
+
+        dx = max(dst[:,0])#-min(dst[:,0])
+        dy = max(dst[:,1])#-min(dst[:,1])
+
+        cv2.imshow('arena',self.arena.bitmap)
+
+        self.arena.reset_bitmap() #remove car lines before cropping camera view
+        warped = cv2.warpPerspective(self.arena.bitmap, M, (int(dx),int(dy)))
+        warped = np.transpose(warped,axes=[1,0,2])
+        warped = warped[:,-1::-1,0]
+        #warped[int(p[2,0]),int(p[2,1])] = 0
+        #warped[int(p[3,0]),int(p[3,1])] = 0
+        warped = warped.copy()
+        cv2.fillPoly(warped, [np.int32(scale*p[[0,4,5,1,3,2,0],-1::-1])], (255,255,255))
+
+        if self.t0 > 0:
+            # MQTT send bool
+            tmp = warped == 255
+            t = time()
+            payload = ts_mask_to_payload(t, tmp)
+            #payload = bool_to_payload(tmp[:,:,0])
+            self.t0 = 0
+            self.client.publish(MSG_BOOL_ARRAY, payload)
+        else:
+            self.t0 += 1
+
+        # check for sign in the frustum
+        # panel direction (seen in that direction)
+        #     ^1
+        # <2     >4
+        #     _3
+        a_cam = a + self.camera.h_dir
+        for s in self.arena.arena["STOP"]:
+            a_s = s[2] * np.pi/2
+            if is_in_poly(XY_f[[0,1,3,2],:],s[0],s[1]):
+                if np.abs(angle_diff(a_cam,a_s))<np.pi/16:
+                    send_a_sign('stop')
+        for s in self.arena.arena["LEFT"]:
+            a_s = s[2] * np.pi/2
+            if is_in_poly(XY_f[[0,1,3,2],:],s[0],s[1]):
+                if np.abs(angle_diff(a_cam,a_s))<np.pi/16:
+                    send_a_sign('left')
+        for s in self.arena.arena["RIGHT"]:
+            a_s = s[2] * np.pi/2
+            if is_in_poly(XY_f[[0,1,3,2],:],s[0],s[1]):
+                if np.abs(angle_diff(a_cam,a_s))<np.pi/16:
+                    send_a_sign('right')
+
+    def update(self):
+
+        self.rec.append(self.pos)
+        if len(self.rec) > 100:
+            self.rec.pop(0)
+
+        #vl = self.theta_l * self.wheel_l
+        #vr = self.theta_r * self.wheel_r
+        #v = .5 * (vl+vr)
+        #d_angle = (vl - vr)/self.e
+
+        #pos = self.pos + v * np.array((np.cos(self.angle),np.sin(self.angle)))
+        self.angle = self.angle + np.pi/180 *  self.rel_angle
+
+        pos = self.pos + self.speed * np.array((np.cos(self.angle),np.sin(self.angle)))
+
+        pos[0] = min(self.arena.size_x,max(0,pos[0]))
+        pos[1] = min(self.arena.size_y,max(0,pos[1]))
+        self.pos = pos
+
+
+        self.remove()
+        self.draw()
+
+
+
+
+    def remove(self):
+        for e in self.element:
+            e.remove()
+
+
+
+
+# MQTT EVENTS
+# --------------------------------------------------------------------------------------------------------------
+def on_connect(client, userdata, flags, rc):
+    # callback function called after connectionhas been established with the MQTT broker
+    logging.info("Connected with result code "+str(rc))
+
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    #client.subscribe("$SYS/#")
+    client.subscribe(MSG_PATH_JSON)
+    # listen to what is communicated on the MSG_DRIVER_SEND_JSON topic
+    client.subscribe(MSG_DRIVER_SEND_JSON)
+
+def on_message(client, userdata, msg):
+    # callback function called after a message is received from the MQTT broker
+    if msg.topic[0]=='$': # skip service messages
+        pass
+        #print(msg.topic)
+    if msg.topic == MSG_DRIVER_SEND_JSON: # change car behaviour
+        d = json.loads(msg.payload.decode('utf-8'))
+        if d['x'] == 0 and d['y'] == 0:
+            #logging.info('json %s'%str(d))
+            # d is a dict with keys x,y,u,v where x and y have integer payloads
+            # and u,v, have float payloads. interpret u as speed and v as angle
+            userdata.speed = -d['u'] #speed and angle need to be inverted since our origin is at (0,0) and the car center is at (x, y) with y positive facing towards (0,0)
+            userdata.rel_angle = -d['v']
+
+
+
+# --------------------------------------------------------------------------------------------------------------
+
+
+def get_arguments():
+    parser = argparse.ArgumentParser(description='Simulator')
+    parser.add_argument('--arena', nargs='?', default=None,
+                        help='specify the name of the arena (default: specified in config file; key=arena).')
+    parser.add_argument('--config', nargs='?', default=None,
+                        help='specify config file to use (default: ./config_server.json)')
+
+    return parser.parse_args()
+
+
+def get_parameters(args):
+    paramsfile = 'config_server.json'
+    if args.config is not None:
+        paramsfile = args.config
+
+    params = read_param(paramsfile)
+    # # default parameters
+    # default_params = {'mqtt_host': 'localhost',
+    #                   'mqtt_port': 1883,
+    #                   'profile': False,
+    #                   'arena': './data/test_arena9s.png'}
+
+    if params is None:
+        # params = default_params
+        logging.error("No parameters available")
+        exit()
+    # else:
+    #     # config file overrides defaults
+    #     p = default_params.copy()
+    #     p.update(params)
+    #     params = p
+
+    # arguments passed on command line override everything else
+    if args.arena is not None:
+        params['arena_json'] = args.arena  # command line overrides config file
+
+    return params
+
+
+def setup_logging():
+    log_file_name = "./%s.log" % path.basename(__file__)
+    scriptname = "%s" % path.basename(__file__)
+    print("Logging to " + path.abspath(log_file_name))
+    create_logger(log_file_name, scriptname=scriptname)
+    # output python version
+    logging.info("Running on python version" + sys.version.replace("\n", "\t"))
+
+
+if __name__ == '__main__':
+
+    #start logging
+    setup_logging()
+
+    args = get_arguments()
+
+    # read parameters file
+    parameters = get_parameters(args)
+
+    if parameters is None:
+        logging.error('No parameters found')
+        sys.exit(1)
+
+    # open MQTT connection
+    client = mqtt.Client()
+#    client = mqtt.Client()
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    client.connect(parameters['mqtt_host'], parameters['mqtt_port'], 10)
+
+    arena = Arena(parameters['arena_json'])
+    x0,y0,a0 = arena.arena['p0']
+    car = Car(x0,y0,a0)
+
+    # perspective parameters
+#    WARP_IMAGE_SIZE = tuple(parameters['warp_size'])
+#    offset = np.array(parameters['offset'],dtype=np.float32)
+#    car.camera.warp_size = WARP_IMAGE_SIZE
+
+    car.set_arena(arena)
+    car.client = client
+
+    car.theta_r = car.theta_r0
+    car.theta_l = car.theta_l0
+
+    client.user_data_set(car)
+
+    arena.show()
+    car.draw()
+
+    try:
+        while True:
+            # Wait for key (needed to display image)
+            k = cv2.waitKey(1)
+
+            client.loop(.05)
+            car.update()
+            sleep(.05)
+
+            if k & 0xFF == ord('h'): #hide/unhide realtime image
+                hide = not hide
+                logging.info("hide is %s"%str(hide))
+            if k & 0xFF == ord('q'): # break the loop if "q" is keyed
+                break
+    except KeyboardInterrupt:
+        pass
+    except:
+        logging.exception("Exception occurred:")
+        sys.exit(1)

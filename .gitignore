@@ -4,19 +4,18 @@
 *~
 *.json
 
-Central Unit/example/start*
-Central Unit/example/config_server.json
-Central Unit/example/image_server.py
-Central Unit/example/send_command.py
+#Central Unit/example/start*
+#Central Unit/example/config_server.json
+#Central Unit/example/image_server.py
+#Central Unit/example/send_command.py
 
-Central Unit/bin/*
-Central Unit/bin_remote/*
-Central Unit/data/*
-Central Unit/misc/*
+#Central Unit/bin/*
+#Central Unit/bin_remote/*
+#Central Unit/data/*
+#Central Unit/misc/*
 __pycache__/*
-Central Unit/template/*
-Central Unit/tools/*
+#Central Unit/template/*
+#Central Unit/tools/*
 Arduino/blink/*
 Arduino/testComm/*
 Arduino/testMotors/*
-

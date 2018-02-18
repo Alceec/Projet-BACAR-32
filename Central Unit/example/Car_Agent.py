@@ -1,6 +1,6 @@
 #inspired by the code @
 #https://github.com/awjuliani/DeepRL-Agents/blob/master/Double-Dueling-DQN.ipynb
-
+import start_sim
 import logging
 from event import Event
 from car import Car 
@@ -16,7 +16,7 @@ from random import randint
 
 
 AMNT_ACTION = 16 
-SAVE_PATH = "./tmp/DriverBrain.ckpt"
+SAVE_PATH = "./Saves/DriverBrain.ckpt"
 
 
 def Layer(In_size, Input, Number_of_Neurons, label = None) : 
@@ -122,6 +122,8 @@ class Replay_Memory :
 Schumacher = Car_Agent.BabyDriver([8, 16, 32, 16, 16], 1, 0.1, 0.009)
 ReplayBuffer = Car_Agent.Replay_Memory()
 total_Step = 0
+logging.info( "!!!! In my own script !!!!")
+
 
 def loop() : 
     #Constants 
@@ -140,14 +142,14 @@ def loop() :
         dic, img = event.val
         frame_data = dic.values()
         
-        if frame_data[-1]
+        if frame_data[-1] : 
             for i in range( len( frame_data ) - 1) : 
                 frame_data[i] = 0 
 
 
         if(total_Step < Exploration_Step ): 
             action = randint(0, 15) 
-        else
+        else : 
             action = Schumacher.Move(frame_data, True)
 
 
@@ -171,5 +173,10 @@ def loop() :
             else : 
                 Schumacher.Train(ReplayBuffer.Sample(250), Y, "") 
 
-        total_Step += 1 
+        total_Step += 1
+
+        if frame_data[-1] : 
+            start_sim.subprocs[-1].kill()
+            start_sim.subprocs.append(subprocess.Popen([start_sim.PYTHON2, '../bin/simulator.py', '--arena', start_sim.args.arena]))
+            total_Step = 0 
         pass
