@@ -166,10 +166,6 @@ def detect(mask):
     mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
     button = ' '
     
-
-    ##### CONVNET ######
-    #command = model.predict(np.array([cv.cvtColor(mask, cv.COLOR_GRAY2RGB)])) 
-
     ##### LSTM #####
 
 
@@ -186,4 +182,4 @@ def detect(mask):
         button = Predict(data) 
  
 
-    return ( {"command" : button},  pts.astype(np.uint8)) #cv.cvtColor(Intersection, cv.COLOR_GRAY2RGB)  )
+    return ( {"command" : button},  pts.astype(np.uint8))
