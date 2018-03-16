@@ -1,8 +1,0 @@
-BacarComm	KEYWORD1
-begin	KEYWORD2
-newMessage	KEYWORD2
-xRead	KEYWORD2
-yRead	KEYWORD2
-uRead	KEYWORD2
-vRead	KEYWORD2
-sendMessage	KEYWORD2
