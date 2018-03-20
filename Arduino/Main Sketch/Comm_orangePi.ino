@@ -37,10 +37,12 @@ void move(int motor, int speed, int direction){
 digitalWrite(STBY,HIGH);
 boolean inPin1 = HIGH;
 boolean inPin2 = LOW;
-if (direction == 1){
+ 
+if (direction == 1) {
 inPin1 = HIGH;
 inPin2 = LOW;
-}else{
+}
+else {
 inPin1 = LOW;
 inPin2 = HIGH;
 
@@ -60,23 +62,15 @@ void loop() {
   float u, v;
   // Vérifie si un nouveau message de l'Orange PI a été reçu
   if (comm.newMessage() == true) {
-    // On lit les 4 valeurs contenues dans le message
-    //x = comm.xRead();
-    //y = comm.yRead();
     u = comm.uRead();
     v = comm.vRead();
-    // et on les renvoie à l'Orange PI
-    if (u == 0){
+    if (u == 0) {
       move(0,0,0);
       move(1,0,0);
     }
-    else{
-      if(v>0){      
-        move(1, (100-v)*0.95, 1);
-        move(0, 100+v, 1);}
-      else{
-        move(1, (100-v)*0.95, 1);
-        move(0, 100+v, 1);}
+    else {    
+      move(1, (100-v)*0.95, 1);
+      move(0, 100+v, 1);}
     }
     }
   }
